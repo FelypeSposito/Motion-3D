@@ -21,6 +21,7 @@ a,button{color:inherit;font:inherit;background:none;border:0;text-decoration:non
 .cursor{position:fixed;top:0;left:0;width:36px;height:36px;margin:-18px 0 0 -18px;border:1.5px solid var(--white);border-radius:50%;pointer-events:none;z-index:100;mix-blend-mode:difference;transition:width .4s var(--ease),height .4s var(--ease),margin .4s var(--ease)}
 .cursor.big{width:70px;height:70px;margin:-35px 0 0 -35px}
 .cursor.water{width:54px;height:54px;margin:-27px 0 0 -27px;background:#fff8ea26}
+@media (pointer:coarse){.cursor{display:none}}   /* toque: sem cursor customizado */
 
 /* distorção líquida no hover (filtro SVG animado pelo JS) */
 .hero h1,.hero small{pointer-events:auto}
@@ -28,8 +29,10 @@ a,button{color:inherit;font:inherit;background:none;border:0;text-decoration:non
 .hero h1 > .mask:hover{color:#fff3d0}
 .cta .lbl,nav a,.pill,.logo{display:inline-block}
 .liq{position:relative;--mx:-999px;--my:-999px;--r:0px}
-.liq-base{display:inline-block;-webkit-mask-image:radial-gradient(circle at var(--mx) var(--my),transparent calc(var(--r)*.35),#000 var(--r));mask-image:radial-gradient(circle at var(--mx) var(--my),transparent calc(var(--r)*.35),#000 var(--r))}
-.liq-dup{position:absolute;inset:0;pointer-events:none;-webkit-mask-image:radial-gradient(circle at var(--mx) var(--my),#000 calc(var(--r)*.35),transparent var(--r));mask-image:radial-gradient(circle at var(--mx) var(--my),#000 calc(var(--r)*.35),transparent var(--r))}
+.liq-base{display:inline-block}
+.liq.on .liq-base{-webkit-mask-image:radial-gradient(circle at var(--mx) var(--my),transparent calc(var(--r)*.35),#000 var(--r));mask-image:radial-gradient(circle at var(--mx) var(--my),transparent calc(var(--r)*.35),#000 var(--r))}
+.liq > .liq-dup{display:none;position:absolute;inset:0;pointer-events:none}
+.liq.on > .liq-dup{display:block;-webkit-mask-image:radial-gradient(circle at var(--mx) var(--my),#000 calc(var(--r)*.35),transparent var(--r));mask-image:radial-gradient(circle at var(--mx) var(--my),#000 calc(var(--r)*.35),transparent var(--r))}
 .liq-dup.liq-big{filter:url(#liq-big)}
 .liq-dup.liq-small{filter:url(#liq-small)}
 .cta .arr{display:inline-block;transition:transform .6s var(--ease)}
@@ -57,6 +60,7 @@ nav a:hover::after{transform:scaleX(1);transform-origin:left}
 .dot{width:46px;height:46px;border-radius:50%;background:var(--white);color:var(--ink);display:grid;place-items:center;font-size:.9rem;letter-spacing:2px;transition:transform .6s var(--ease)}
 .dot:hover{transform:scale(1.15)}
 .hero{position:absolute;left:50%;top:50%;transform:translate(-50%,-58%);text-align:center;pointer-events:none;color:var(--white);text-shadow:0 2px 40px #5a3a1a55}
+@media (pointer:coarse){.hero{text-shadow:none}}
 .hero small{display:block;font-size:clamp(.7rem,1.1vw,1.05rem);letter-spacing:-.02em;margin-bottom:.4rem}
 .hero h1{font-weight:500;line-height:.86;letter-spacing:-.05em}
 .hero h1 .serif{font-size:clamp(3rem,8vw,7.4rem);letter-spacing:-.03em}
@@ -99,7 +103,7 @@ footer .l{display:flex;gap:1.3rem;align-items:center}
     <a class="cta" href="#">Ver projetos <span>↘</span></a>
   </div>
   <footer>
-    <div class="l"><button class="dot">✿</button><a class="pill" href="#">Nosso 2025</a></div>
+    <div class="l"><button class="dot" id="nightBtn" aria-label="Alternar dia e noite" title="Dia / noite">☾</button><a class="pill" href="#">Nosso 2025</a></div>
     <div class="palette" id="palette"></div>
   </footer>
 </div>
@@ -164,7 +168,7 @@ const FOG_GLSL = `
   float fogH = exp(-max(fogY + .5, 0.) * .07);
   float fogF = 1. - exp(-max(fogDist - 10., 0.) * fogDensity * (.25 + fogH));
   float fogS = pow(max(dot(fogD / fogDist, vec3(${sd})), 0.), 5.);
-  vec3 fogC = mix(fogColor, vec3(1.45, .95, .48), fogS);
+  vec3 fogC = mix(fogColor, vec3(1.45, .95, .48), fogS * clamp(dot(fogColor, vec3(.3, .59, .11)) * 2.2, 0., 1.));
   fogOut = mix(fogIn, fogC, clamp(fogF, 0., 1.));`;
 THREE.ShaderChunk.fog_pars_vertex = `#ifdef USE_FOG
  varying vec3 vFogWorld;
@@ -190,10 +194,11 @@ THREE.ShaderChunk.fog_fragment = `#ifdef USE_FOG
 // =====================================================================
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
 const MOBILE = matchMedia("(max-width: 768px), (pointer: coarse)").matches;   // celular/tablet: câmera no eixo do arco + menos custo
-const DPR = Math.min(devicePixelRatio, MOBILE ? 1 : 1.5);
+const DPR = Math.min(devicePixelRatio, MOBILE ? 1.25 : 1.5);
 renderer.setPixelRatio(DPR);
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
+if (MOBILE) renderer.shadowMap.autoUpdate = false;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = .82;
@@ -203,7 +208,7 @@ const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(C.fog, .03);
 const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, .1, 2500);
 camera.position.set(0, 2.7, 30);
-const U = { time: { value: 0 }, sunView: { value: new THREE.Vector3() } };
+const U = { time: { value: 0 }, sunView: { value: new THREE.Vector3() }, night: { value: 0 } };
 
 // céu frio e baixo (as sombras ficam lilases), sol quente forte vindo de trás
 scene.add(new THREE.HemisphereLight("#c9c3d8", "#4a5530", .55));
@@ -211,7 +216,7 @@ const sunLight = new THREE.DirectionalLight("#ffb46b", 5.2);
 sunLight.position.set(SUN_DIR.x * 70 + 2, 24, SUN_DIR.z * 70 - 6);
 sunLight.target.position.set(2, 0, -6);
 sunLight.castShadow = true;
-sunLight.shadow.mapSize.set(2048, 2048);
+sunLight.shadow.mapSize.set(MOBILE ? 1024 : 2048, MOBILE ? 1024 : 2048);
 Object.assign(sunLight.shadow.camera, { left: -26, right: 26, top: 26, bottom: -26, near: 1, far: 160 });
 sunLight.shadow.bias = -.0004; sunLight.shadow.normalBias = .03;
 scene.add(sunLight, sunLight.target);
@@ -224,14 +229,14 @@ const GLSL_NOISE = `
 float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
 float vnoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f*f*(3.-2.*f);
   return mix(mix(hash(i), hash(i+vec2(1,0)), u.x), mix(hash(i+vec2(0,1)), hash(i+vec2(1,1)), u.x), u.y); }
-float fbm(vec2 p){ float s = 0., a = .5; for(int i = 0; i < 6; i++){ s += a * vnoise(p); p = p * 2.03 + 1.7; a *= .5; } return s; }
+float fbm(vec2 p){ float s = 0., a = .5; for(int i = 0; i < ${MOBILE ? 4 : 6}; i++){ s += a * vnoise(p); p = p * 2.03 + 1.7; a *= .5; } return s; }
 float fbm4(vec2 p){ float s = 0., a = .5; for(int i = 0; i < 4; i++){ s += a * vnoise(p); p = p * 2.03 + 1.7; a *= .5; } return s / .9375; }`;
 const sky = new THREE.Mesh(new THREE.SphereGeometry(1200, 48, 24), new THREE.ShaderMaterial({
   side: THREE.BackSide, depthWrite: false, fog: false,
-  uniforms: { uTime: U.time, sunDir: { value: SUN_DIR } },
+  uniforms: { uTime: U.time, sunDir: { value: SUN_DIR }, uNight: { value: 0 } },
   vertexShader: `varying vec3 vDir; void main(){ vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }`,
   fragmentShader: `
-    varying vec3 vDir; uniform vec3 sunDir; uniform float uTime; ${GLSL_NOISE}
+    varying vec3 vDir; uniform vec3 sunDir; uniform float uTime, uNight; ${GLSL_NOISE}
     void main(){
       vec3 d = normalize(vDir); float h = d.y;
       vec3 hor = vec3(.91,.76,.59), mid = vec3(.93,.7,.52), top = vec3(.62,.62,.72);
@@ -247,6 +252,12 @@ const sky = new THREE.Mesh(new THREE.SphereGeometry(1200, 48, 24), new THREE.Sha
         float c = smoothstep(.5, .85, fbm(uv * 1.3)) * smoothstep(.05, .25, h);
         vec3 cc = pow(vec3(1., .78, .6), vec3(2.2)) + vec3(1., .5, .2) * pow(s, 4.) * 1.5;
         col = mix(col, cc, c * .7);
+      }
+      if (uNight > 0.) {
+        vec3 nc = mix(vec3(.05, .07, .15), vec3(.008, .012, .035), smoothstep(-.02, .55, h));
+        vec3 moonDir = normalize(vec3(-.45, .3, -1.)); float md = max(dot(d, moonDir), 0.);
+        nc += vec3(.95, .97, 1.1) * smoothstep(.99935, .9997, md) * 2.2 + vec3(.25, .35, .65) * pow(md, 30.) * .18;
+        col = mix(col, nc, uNight);
       }
       gl_FragColor = vec4(col, 1.);
     }`
@@ -357,7 +368,7 @@ const wingTex = canvasTex(64, (x) => {
 // =====================================================================
 function windify(mat, { amp = .3, height = 1, flat = false, blade = false, glow = 0, trans = 0, key = "w" } = {}) {
   mat.onBeforeCompile = sh => {
-    sh.uniforms.uTime = U.time; sh.uniforms.uSunView = U.sunView;
+    sh.uniforms.uTime = U.time; sh.uniforms.uSunView = U.sunView; sh.uniforms.uNightW = U.night;
     sh.vertexShader = "uniform float uTime;\nvarying float vH;\nvarying float vTip;\nvarying float vScat;\n" + sh.vertexShader
       .replace("#include <begin_vertex>", `#include <begin_vertex>
         vH = ${flat ? "1.0" : `clamp(position.y / ${height.toFixed(3)}, 0., 1.)`};
@@ -381,13 +392,13 @@ function windify(mat, { amp = .3, height = 1, flat = false, blade = false, glow 
         vScat = pow(max(dot(normalize(wp.xyz - cameraPosition), vec3(${sd})), 0.), 3.);
         vec4 mvPosition = viewMatrix * wp;
         gl_Position = projectionMatrix * mvPosition;`);
-    sh.fragmentShader = "varying float vH;\nvarying float vTip;\nvarying float vScat;\n" + sh.fragmentShader;
+    sh.fragmentShader = "uniform float uNightW;\nvarying float vH;\nvarying float vTip;\nvarying float vScat;\n" + sh.fragmentShader;
     if (blade) sh.fragmentShader = sh.fragmentShader.replace("#include <color_fragment>", `#include <color_fragment>
       diffuseColor.rgb *= mix(.28, 1.1, vH);
       diffuseColor.rgb = mix(diffuseColor.rgb, vec3(.62, .44, .17), smoothstep(.55, 1., vH) * smoothstep(.45, 1., vTip) * .85);`);
     sh.fragmentShader = sh.fragmentShader.replace("#include <emissivemap_fragment>", `#include <emissivemap_fragment>
       float scat = vScat;
-      totalEmissiveRadiance += diffuseColor.rgb * vec3(1., .62, .3) * (${glow.toFixed(3)} + scat * ${trans.toFixed(3)}) * ${blade ? "pow(vH, 1.5)" : "1."};`);
+      totalEmissiveRadiance += diffuseColor.rgb * vec3(1., .62, .3) * (${glow.toFixed(3)} + scat * ${trans.toFixed(3)}) * ${blade ? "pow(vH, 1.5)" : "1."} * (1. - uNightW * .92);   // sem contraluz dourado à noite`);
   };
   mat.customProgramCacheKey = () => `${key}-${amp}-${height}-${flat}-${blade}-${glow}-${trans}`;
   return mat;
@@ -419,7 +430,38 @@ function terrain(w, d, sx, sz, cx, cz, fn, colorFn) {
   g.computeVertexNormals();
   return g;
 }
-scene.add(shadow(new THREE.Mesh(terrain(170, 170, 220, 220, 0, 0, H, (x, z, h, sl, out) => {
+// celular: o terreno ganha uma textura de gramado baixo com relevo (mapa de cor + normal),
+// multiplicada pelas cores do terreno. Substitui as lâminas de grama sem custo de geometria.
+let groundMat = std("#ffffff", .96, { vertexColors: true });
+if (MOBILE) {
+  const G = 512, gh = new Float32Array(G * G);
+  const gMap = canvasTex(G, (x) => pixels(x, G, (i, j) => {
+    const u = i / G, v = j / G;
+    const blades = pfbm(u * 96, v * 24, 96, 24, 3), fine = pfbm(u * 64, v * 64, 64, 64, 3), patch = pfbm(u * 6, v * 6, 6, 6, 3);
+    const m = .72 + blades * .38 + (fine - .5) * .16;
+    gh[j * G + i] = blades * .7 + fine * .3;
+    const dry = smooth(.55, .75, patch);                       // manchas mais secas, cor de palha
+    return [255 * m * (.92 + dry * .12), 255 * m, 255 * m * (.8 - dry * .1)];
+  }));
+  const gNorm = canvasTex(G, (x) => pixels(x, G, (i, j) => {
+    const hx = gh[j * G + md(i + 1, G)] - gh[j * G + md(i - 1, G)], hy = gh[md(j + 1, G) * G + i] - gh[md(j - 1, G) * G + i];
+    const n = new THREE.Vector3(-hx * 5, hy * 5, 1).normalize();
+    return [(n.x * .5 + .5) * 255, (n.y * .5 + .5) * 255, (n.z * .5 + .5) * 255];
+  }), { srgb: false });
+  gMap.repeat.set(70, 70); gNorm.repeat.set(70, 70);
+  groundMat = std("#ffffff", .95, { vertexColors: true, map: gMap, normalMap: gNorm, normalScale: new THREE.Vector2(1.1, 1.1) });
+  groundMat.onBeforeCompile = sh => {
+    sh.fragmentShader = sh.fragmentShader.replace("#include <map_fragment>", `
+      #ifdef USE_MAP
+        vec4 sampledDiffuseColor = texture2D(map, vMapUv);
+        float macro = texture2D(map, vMapUv * .137 + .31).g, macro2 = texture2D(map, vMapUv * .041).r;
+        sampledDiffuseColor.rgb *= (.72 + macro * .42) * (.85 + macro2 * .25);   // manchas grandes: sem padrão repetido
+        diffuseColor *= sampledDiffuseColor;
+      #endif`);
+  };
+  groundMat.customProgramCacheKey = () => "ground-macro";
+}
+scene.add(shadow(new THREE.Mesh(terrain(170, 170, MOBILE ? 160 : 220, MOBILE ? 160 : 220, 0, 0, H, (x, z, h, sl, out) => {
   const n = fbm(x * .3, z * .3, 3);
   if (h < -.25) out.set("#3a4430");
   else if (h < .2) out.set("#b8a476").lerp(tmpC.set("#7d7650"), n * .7).lerp(tmpC.set("#4a5236"), smooth(.05, -.25, h));
@@ -429,10 +471,10 @@ scene.add(shadow(new THREE.Mesh(terrain(170, 170, 220, 220, 0, 0, H, (x, z, h, s
     out.lerp(tmpC.set("#7d8f5c"), smooth(3, 12, h) * .5);
   }
   if (sl > .55) out.lerp(tmpC.set("#7a705e"), Math.min((sl - .55) * 1.6, .85));
-}), std("#ffffff", .96, { vertexColors: true }))));
-scene.add(new THREE.Mesh(terrain(600, 420, 120, 50, 0, -292, M, (x, z, h, sl, out) => {
+}), groundMat)));
+scene.add(Object.assign(new THREE.Mesh(terrain(600, 420, 120, 50, 0, -292, M, (x, z, h, sl, out) => {
   out.set("#4f6b44").lerp(tmpC.set("#6d7a72"), smooth(4, 30, h)).lerp(tmpC.set("#d8c8b0"), smooth(42, 62, h));
-}), std("#ffffff", 1, { vertexColors: true })));
+}), std("#ffffff", 1, { vertexColors: true })), { userData: { far: true } }));
 
 // =====================================================================
 // ÁGUA REALISTA: normal map em 3 escalas, fresnel de Schlick, corpo
@@ -442,14 +484,16 @@ const WaterShader = {
   uniforms: {
     color: { value: null }, tDiffuse: { value: null }, textureMatrix: { value: null },
     uTime: { value: 0 }, sunDir: { value: SUN_DIR }, tNormal: { value: waterNormal },
+    uNight: { value: 0 },
     uRip: { value: Array.from({ length: 16 }, () => new THREE.Vector4(0, 0, -100, 0)) },
     tTrail: { value: null }, uTrailRect: { value: new THREE.Vector4(-30, -25, 60, 50) },
-    fogColor: { value: new THREE.Color(C.fog) }, fogDensity: { value: .014 }
+    tDepthW: { value: null }, uDepthRect: { value: new THREE.Vector4(-40, -30, 84, 52) },
+    fogColor: { value: new THREE.Color(C.fog) }, fogDensity: { value: MOBILE ? .03 : .014 }
   },
   vertexShader: `uniform mat4 textureMatrix; varying vec4 vUv; varying vec3 vW;
     void main(){ vec4 w = modelMatrix * vec4(position,1.); vW = w.xyz; vUv = textureMatrix * w; gl_Position = projectionMatrix * viewMatrix * w; }`,
   fragmentShader: `
-    uniform vec3 color, sunDir, fogColor; uniform float fogDensity, uTime; uniform sampler2D tDiffuse, tNormal, tTrail; uniform vec4 uRip[16]; uniform vec4 uTrailRect;
+    uniform vec3 color, sunDir, fogColor; uniform float fogDensity, uTime, uNight; uniform sampler2D tDiffuse, tNormal, tTrail, tDepthW; uniform vec4 uRip[16]; uniform vec4 uTrailRect, uDepthRect;
     varying vec4 vUv; varying vec3 vW;
     vec3 tn(vec2 uv){ return texture2D(tNormal, uv).rgb * 2. - 1.; }
     void main(){
@@ -462,24 +506,26 @@ const WaterShader = {
       vec2 wob = vec2(sin(vW.x * .5 + uTime * .9) + sin(vW.z * .8 - uTime * .7), cos(vW.z * .6 + uTime * .8) + sin(vW.x * .3 - uTime * .5)) * .006;
       // ondulações do mouse: anéis que se expandem e somem (rastro ao passar, onda maior no clique)
       vec2 ripN = vec2(0.); float ripHi = 0.;
-      for (int i = 0; i < 16; i++) {
+      for (int i = 0; i < ${MOBILE ? 8 : 16}; i++) {
         vec4 r = uRip[i]; float age = uTime - r.z;
         if (age < 0. || age > 4.) continue;
         vec2 dv = vW.xz - r.xy; float dd = length(dv) + 1e-4, rad = age * 1.5;
-        float env = exp(-pow((dd - rad) * 2.2, 2.)) * exp(-age * 1.1) * r.w, wv = sin((dd - rad) * 16.);
+        float q = (dd - rad) * 2.2;   // q*q e não pow(q, 2.): pow de negativo é indefinido (no iPhone virava um disco branco)
+        float env = exp(-q * q) * exp(-age * 1.1) * r.w, wv = sin((dd - rad) * 16.);
         ripN += dv / dd * wv * env; ripHi += max(wv, 0.) * env;
       }
       n = normalize(n + vec3(ripN.x, 0., ripN.y) * .55);
       wob += ripN * .02;
       // esteira do mouse: gradiente do mapa de rastro vira inclinação da superfície + ondinhas dentro dela
       vec2 tuv = (p - uTrailRect.xy) / uTrailRect.zw; float te = .003;
-      float tr0 = texture2D(tTrail, tuv).r;
-      vec2 tg = vec2(texture2D(tTrail, tuv + vec2(te, 0.)).r - texture2D(tTrail, tuv - vec2(te, 0.)).r, texture2D(tTrail, tuv + vec2(0., te)).r - texture2D(tTrail, tuv - vec2(0., te)).r);
+      // limiar: o desbotamento em 8 bits deixa um resíduo que nunca chega a zero (virava um disco cinza)
+      float tr0 = max(texture2D(tTrail, tuv).r - .07, 0.);
+      vec2 tg = vec2(max(texture2D(tTrail, tuv + vec2(te, 0.)).r - .07, 0.) - max(texture2D(tTrail, tuv - vec2(te, 0.)).r - .07, 0.), max(texture2D(tTrail, tuv + vec2(0., te)).r - .07, 0.) - max(texture2D(tTrail, tuv - vec2(0., te)).r - .07, 0.));
       // ondinhas orgânicas: textura de ondas em escala pequena e rápida (senoides regulares viravam listras)
       vec2 tw = (tn(p * 1.1 + vec2(uTime * .35, -uTime * .28)).xy + tn(p * 1.9 - vec2(uTime * .3, uTime * .41)).xy * .7) * tr0 * smoothstep(35., 8., dist);
       n = normalize(n + vec3(-tg.x * .7 + tw.x * .45, 0., -tg.y * .7 + tw.y * .45));   // pouca "lombada", muitas ondinhas finas
       wob += (-tg * .04 + tw * .007);
-      ripHi += tr0 * .25 + pow(max(dot(n, normalize(sunDir + normalize(cameraPosition - vW))), 0.), 300.) * tr0 * 6.;   // brilho cintilante na esteira
+      ripHi += tr0 * .08 + pow(max(dot(n, normalize(sunDir + normalize(cameraPosition - vW))), 0.), 300.) * tr0 * 6.;   // brilho cintilante na esteira
       n = normalize(mix(n, vec3(0., 1., 0.), smoothstep(25., 160., dist) * .75));
       float fres = .02 + .98 * pow(1. - max(dot(n, v), 0.), 5.);
       // reflexo suavizado: 6 amostras espalhadas pelas normais (evita listras e bordas duras)
@@ -495,19 +541,36 @@ const WaterShader = {
       vec3 body = mix(color * .55 + vec3(.02, .025, .01), color * .22, smoothstep(.9, 2., shore)) + fogColor * .05;
       // quase espelho: o reflexo domina, com leve tom da lagoa
       vec3 col = mix(body, refl * mix(vec3(1.), color * 2.4 + .35, .22), clamp(fres * 1.1 + .38, 0., 1.));
+      // profundidade real (pré-calculada do relevo): 0 = margem, 1 = fundo
+      float dep = texture2D(tDepthW, (p - uDepthRect.xy) / uDepthRect.zw).r;
+      vec3 bed = vec3(.32, .26, .15) * (.8 + fogColor * .3);                    // fundo de areia visto pela água rasa
+      col = mix(col, mix(bed, col, .45), (1. - smoothstep(.0, .3, dep)) * (1. - fres) * .55);
+      col = mix(col, col * vec3(.72, .86, .84), smoothstep(.35, 1., dep) * .35);   // fundo do lago mais escuro e frio
+      // espuma fina seguindo o contorno da ilha, pulsando devagar e quebrada pelo ruído das ondas
+      float foamN = tn(p * .55 + vec2(uTime * .03, -uTime * .02)).x * .5 + .5;
+      float foam = (1. - smoothstep(.0, .055, dep)) * smoothstep(.0, .012, dep + .004);
+      foam *= .55 + .45 * sin(dep * 140. - uTime * 1.6 + foamN * 6.);
+      col = mix(col, fogColor * 1.25 + .05, clamp(foam * foamN * 1.3, 0., 1.) * .55);
       vec3 hv = normalize(sunDir + v); float nh = max(dot(n, hv), 0.);
       // rastro do sol: brilho largo e suave + cintilação fina nas cristas
       float glitter = pow(nh, 2200.) * 10. * (.4 + .6 * step(.6, fract(sin(dot(floor(vW.xz * 18.), vec2(12.9, 78.2))) * 43758.5 + uTime * .7)));
-      col += vec3(1., .7, .38) * (glitter * 1.4 + pow(nh, 60.) * .35 + pow(nh, 8.) * .08);
-      col += vec3(1., .88, .66) * ripHi * .1;
+      col += vec3(1., .7, .38) * (glitter * 1.4 + pow(nh, 60.) * .35 + pow(nh, 8.) * .08) * (1. - uNight);
+      vec3 hm = normalize(normalize(vec3(-.45, .3, -1.)) + v);
+      col += vec3(.7, .8, 1.) * (pow(max(dot(n, hm), 0.), 500.) * 2.2 + pow(max(dot(n, hm), 0.), 50.) * .05) * uNight;   // rastro da lua
+      col += vec3(1., .88, .66) * ripHi * .1 * (1. - uNight);
+      col += vec3(.2, .85, 1.) * (tr0 * 2.2 + ripHi * .9) * uNight;   // à noite: rastro e ondas acendem como plâncton
       vec3 fogD = -toCam; float fogY = vW.y; vec3 fogIn = col; vec3 fogOut;
       ${FOG_GLSL}
-      gl_FragColor = vec4(fogOut, 1.);
+      gl_FragColor = vec4(min(fogOut, vec3(${MOBILE ? '1.3' : '30.'})), 1.);
     }`
 };
+// celular: tudo que é instanciado (detalhes pequenos e repetidos), partículas e as montanhas
+// distantes ficam fora do reflexo — a segunda passada desenha só ilha, ruínas, pedras grandes, píer e céu
+let _noRefl = null;
+const mobileNoReflect = () => _noRefl || (_noRefl = scene.children.filter(o => o.isInstancedMesh || o.isPoints || o.userData.far));
 const water = new Reflector(new THREE.PlaneGeometry(1400, 1400), {
   shader: WaterShader, color: C.pond, clipBias: .002,
-  textureWidth: innerWidth * DPR * .4, textureHeight: innerHeight * DPR * .4
+  textureWidth: innerWidth * DPR * (MOBILE ? .33 : .4), textureHeight: innerHeight * DPR * (MOBILE ? .33 : .4)
 });
 water.rotation.x = -Math.PI / 2;
 Object.assign(water.material.uniforms.sunDir, { value: SUN_DIR });
@@ -515,11 +578,14 @@ water.material.uniforms.tNormal.value = waterNormal;
 water.material.uniforms.fogColor.value = new THREE.Color(C.fog);
 scene.add(water);
 // as camadas de névoa ficam fora do reflexo: ele continua nítido (a névoa global ainda age nele)
+let reflFrame = 0;
 { const ob = water.onBeforeRender; water.onBeforeRender = function (...args) {
-  const fd = scene.fog.density; scene.fog.density = fd * .45;   // a água já aplica a própria névoa por cima
+  const fd = scene.fog.density; scene.fog.density = fd * (MOBILE ? .9 : .45);   // celular: reflexo com quase a mesma névoa (evita faixa escura das colinas refletidas)   // a água já aplica a própria névoa por cima
   // fora do reflexo: névoa + tudo que boia na superfície (vitórias-régias, lótus) e partículas.
   // Refletidos, eles apareciam deslocados pela ondulação como elipses claras e manchas escuras.
-  const skip = [...fogCards, ...surfaceOnly, pads, petals, pollen, ...butterflies, ...scene.children.filter(o => o.material === lotusMat)];
+  const skip = [...fogCards, ...surfaceOnly, pads, petals, pollen, ...butterflies, ...scene.children.filter(o => o.material === lotusMat),
+    ...(MOBILE ? mobileNoReflect() : [])];
+  if (MOBILE && (reflFrame++ & 1)) { scene.fog.density = fd; return; }   // celular: reflexo a cada 2 quadros (imperceptível na água)
   skip.forEach(c => c.visible = false); ob.apply(this, args); skip.forEach(c => c.visible = true);
   scene.fog.density = fd;
 }; }
@@ -564,6 +630,7 @@ const leafMat = (key, amp = .07, trans = 1.4) => windify(std("#ffffff", .7, { ma
 const dryLeafMat = std("#ffffff", .85, { map: leafTex, alphaTest: .5, side: THREE.DoubleSide });
 const dryCols = ["#c9772e", "#d99a3c", "#a65a2a", "#e0b04a", "#8a6a3a", "#b8863c", "#7a5a30"];
 function scatterLeaves(parent, n, posFn) {
+  if (MOBILE) return;   // celular: sem folhas
   const L = new THREE.InstancedMesh(flatLeafGeo, dryLeafMat, n);
   for (let i = 0; i < n; i++) { const s = rand(.6, 1.2); setInst(L, i, posFn(i), [rand(-.25, .25), rand(0, 6.28), rand(-.25, .25)], [s, s, s], pick(dryCols)); }
   parent.add(shadow(L, false, true));
@@ -583,7 +650,7 @@ function mainArch() {
   }
   g.add(shadow(moss));
   // hera pendurada com folhas translúcidas
-  const IV = 1400, ivy = new THREE.InstancedMesh(leafGeo, leafMat("ivy", .05, 1.2), IV);
+  const IV = MOBILE ? 0 : 1400, ivy = new THREE.InstancedMesh(leafGeo, leafMat("ivy", .05, 1.2), IV);
   ivy.customDepthMaterial = leafDepth;
   let n = 0;
   for (let s = 0; s < 18 && n < IV; s++) {
@@ -637,7 +704,7 @@ fallen.position.set(2.5, H(2.5, -3.5) + .2, -3.5); scene.add(fallen);
 // musgo nas faces de cima, líquen pontilhado e faixa molhada perto da água
 // =====================================================================
 const rockGeos = Array.from({ length: 6 }, (_, k) => {
-  let g = new THREE.IcosahedronGeometry(1, 28); g.deleteAttribute("normal"); g.deleteAttribute("uv"); g = mergeVertices(g);
+  let g = new THREE.IcosahedronGeometry(1, MOBILE ? 18 : 28); g.deleteAttribute("normal"); g.deleteAttribute("uv"); g = mergeVertices(g);
   const p = g.attributes.position, cav = new Float32Array(p.count);
   for (let i = 0; i < p.count; i++) {
     v3.fromBufferAttribute(p, i);
@@ -674,6 +741,7 @@ addRock(-2.5, -1.5, 1.6); addRock(-10, -12, 1.3); addRock(12.5, -6, 1.1);
 const trees = [];
 const barkMat = std("#ffffff", 1, { map: barkTex, bumpMap: barkTex, bumpScale: 4 });
 function makeTree(x, z, s, cols, nLeaves = 2600, leafS = 1) {
+  if (MOBILE) return;   // celular: sem árvores com folhas
   const y0 = H(x, z); if (y0 < .1) return;
   const g = new THREE.Group(), th = 5 * s;
   const tg = new THREE.CylinderGeometry(.14 * s, .34 * s, th, 16, 28); tg.translate(0, th / 2, 0);
@@ -720,7 +788,7 @@ makeTree(10.5, -3.5, .72, ["#5a8a38", "#7aa648", "#9cbc58", "#c2b850"], 3200, .6
 // pinheiros — silhuetas em camadas dentro da névoa
 const pineGeo = mergeGeometries([0, 1, 2, 3].map(k => new THREE.ConeGeometry(1 - k * .2, 1.4, 10).translate(0, 1.3 + k * .7, 0).toNonIndexed())
   .concat([new THREE.CylinderGeometry(.08, .12, 1.2, 6).translate(0, .6, 0).toNonIndexed()]));
-const PN = 600, pines = new THREE.InstancedMesh(pineGeo, std("#ffffff", .95), PN);
+const PN = MOBILE ? 160 : 600, pines = new THREE.InstancedMesh(pineGeo, std("#ffffff", .95), PN);
 let pc = 0;
 for (let i = 0; pc < PN && i < 80000; i++) {
   const x = rand(-70, 70), z = rand(-85, -22), h = H(x, z);
@@ -733,7 +801,7 @@ pines.count = pc;
 scene.add(shadow(pines, true, true));
 
 const bushGeo = rockGeos[2].clone(); bushGeo.deleteAttribute("color");
-const BN = 90, bushes = new THREE.InstancedMesh(bushGeo, windify(std("#ffffff", .9), { amp: .05, flat: true, trans: .6, key: "bush" }), BN);
+const BN = MOBILE ? 0 : 90, bushes = new THREE.InstancedMesh(bushGeo, windify(std("#ffffff", .9), { amp: .05, flat: true, trans: .6, key: "bush" }), BN);
 let bc = 0;
 for (let i = 0; bc < BN && i < 9000; i++) {
   const x = rand(-15, 17), z = rand(-17, 4), h = H(x, z); if (h < .35) continue;
@@ -757,11 +825,11 @@ const seedGeo = mergeGeometries([
   new THREE.SphereGeometry(1, 6, 5).scale(.018, .06, .018).rotateZ(-.5).translate(.05, .86, .07).toNonIndexed()
 ]);
 const grassKinds = [
-  { geo: blade(.07, .18, 1.6), share: .55, n: 0 },
-  { geo: blade(.12, .38, 1.1), share: .3, n: 0 },
-  { geo: seedGeo, share: .15, n: 0, tall: 1.5 }
+  { geo: blade(.07, .18, 1.6), share: MOBILE ? .65 : .55, n: 0 },
+  { geo: blade(.12, .38, 1.1), share: MOBILE ? .35 : .3, n: 0 },
+  { geo: seedGeo, share: MOBILE ? 0 : .15, n: 0, tall: 1.5 }   // celular: sem espigas (muitas esferas)
 ];
-const GN = MOBILE ? 22000 : 48000;
+const GN = MOBILE ? 0 : 48000;
 grassKinds.forEach((k, i) => { k.mesh = new THREE.InstancedMesh(k.geo, windify(std("#ffffff", .7, { side: THREE.DoubleSide }), { amp: .32, height: 1, blade: true, glow: .05, trans: 2.4, key: "grass" + i }), Math.ceil(GN * k.share)); });
 const grassCols = ["#5d8a38", "#78a048", "#93b456", "#4f7a30", "#a8b860", "#b8ae68"];
 let gn = 0;
@@ -777,7 +845,7 @@ for (let i = 0; gn < GN && i < GN * 4; i++) {
 }
 grassKinds.forEach(k => { k.mesh.count = k.n; k.mesh.receiveShadow = true; scene.add(k.mesh); });
 
-const RN = 900, reeds = new THREE.InstancedMesh(grassKinds[0].geo, windify(std("#ffffff", .8, { side: THREE.DoubleSide }), { amp: .35, height: 1, blade: true, trans: 1.8, key: "reed" }), RN);
+const RN = MOBILE ? 420 : 900, reeds = new THREE.InstancedMesh(MOBILE ? new THREE.CylinderGeometry(.008, .016, 1, 5).translate(0, .5, 0) : grassKinds[0].geo, windify(std("#ffffff", .8, { side: THREE.DoubleSide }), { amp: .35, height: 1, blade: true, trans: 1.8, key: "reed" }), RN);
 const tails = new THREE.InstancedMesh(new THREE.CapsuleGeometry(.055, .32, 4, 8), windify(std("#5a3c26", .9), { amp: .35, flat: true, key: "tail" }), 140);
 let rn = 0, tn = 0;
 for (let i = 0; rn < RN && i < 80000; i++) {
@@ -785,7 +853,7 @@ for (let i = 0; rn < RN && i < 80000; i++) {
   if (h > .25 || h < -.55 || fbm(x * .25, z * .25, 2) < .45 || (z > -2 && Math.abs(x - 4.8) < 6)) continue;
   const s = rand(1.3, 2.6);
   setInst(reeds, rn++, [x, Math.max(h, -.3), z], [rand(-.1, .1), rand(0, 6.28), rand(-.12, .12)], [rand(1.4, 2.2), s, 1.5], pick(["#5b7a34", "#6f8a3c", "#4a6a2c", "#8a9450"]));
-  if (tn < 140 && Math.random() < .2) setInst(tails, tn++, [x, Math.max(h, -.3) + s * .92, z], [0, 0, 0], [1, 1, 1]);
+  if (tn < 140 && Math.random() < (MOBILE ? .45 : .2)) setInst(tails, tn++, [x, Math.max(h, -.3) + s * .92, z], [0, 0, 0], [1, 1, 1]);
 }
 reeds.count = rn; tails.count = tn;
 scene.add(shadow(reeds, false, true), shadow(tails, false, true));
@@ -796,7 +864,7 @@ const headGeo = mergeGeometries([0, 1, 2, 3, 4].map(petal).concat([new THREE.Sph
 { const n = headGeo.attributes.position.count, c = new Float32Array(n * 3).fill(1); for (let i = n - 8 * 6 * 6; i < n; i++) c.set([1, .75, .2], i * 3); headGeo.setAttribute("color", new THREE.BufferAttribute(c, 3)); }
 headGeo.translate(0, 1, 0);
 const stemGeo = new THREE.CylinderGeometry(.006, .01, 1, 4).translate(0, .5, 0);
-const FN = 2600;
+const FN = MOBILE ? 0 : 2600;
 const heads = new THREE.InstancedMesh(headGeo, windify(std("#ffffff", .55, { vertexColors: true }), { amp: .3, height: 1, glow: .05, trans: 1.2, key: "head" }), FN);
 const stems = new THREE.InstancedMesh(stemGeo, windify(std("#4f7a30", .8), { amp: .3, height: 1, key: "stem" }), FN);
 const flowerCols = [C.coral, C.blossom, "#fff4e0", "#e8705f", C.sun, "#c9a4e8", "#ffffff"];
@@ -820,8 +888,9 @@ scatterLeaves(scene, 500, () => { let x, z; do { x = rand(-9, 13); z = rand(-6, 
 // =====================================================================
 const padGeo = new THREE.RingGeometry(0, .6, 48, 6).rotateX(-Math.PI / 2);
 { const p = padGeo.attributes.position; for (let i = 0; i < p.count; i++) { const r = Math.hypot(p.getX(i), p.getZ(i)) / .6; p.setY(i, Math.pow(r, 5) * .05 - r * .01); } padGeo.computeVertexNormals(); }
-const PADN = 80, pads = new THREE.InstancedMesh(padGeo, std("#ffffff", .85, { map: padTex, alphaTest: .5, side: THREE.DoubleSide, envMapIntensity: .3 }), PADN);
+const PADN = MOBILE ? 0 : 80, pads = new THREE.InstancedMesh(padGeo, std("#ffffff", .85, { map: padTex, alphaTest: .5, side: THREE.DoubleSide, envMapIntensity: .3 }), PADN);
 const lotusGeo = mergeGeometries([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(k => new THREE.SphereGeometry(1, 10, 8).scale(.07, .03, .17).translate(0, 0, .12).rotateX(k < 5 ? -.5 : -1.05).rotateY(k * Math.PI * 2 / 5 + (k < 5 ? 0 : .6)).toNonIndexed()));
+const NIGHT = { v: 0 }, NIGHT_GLOW = [];
 const lotusMat = windify(std("#f7b9c9", .5, { emissive: "#f29ab0", emissiveIntensity: .12 }), { amp: 0, flat: true, trans: 1.2, key: "lotus" });
 let pn = 0;
 for (let i = 0; pn < PADN && i < 20000; i++) {
@@ -852,7 +921,7 @@ const onIsland = (minH = .25) => { for (let i = 0; i < 200; i++) { const x = ran
   const g = mergeGeometries([stem, ...florets]), n = g.attributes.position.count, sc = stem.attributes.position.count, c = new Float32Array(n * 3);
   for (let i = 0; i < n; i++) { (i < sc ? col.set("#5a8a38") : col.set(pick(["#8a6cd8", "#9b7be6", "#7a5cc8"]))); c.set([col.r, col.g, col.b], i * 3); }
   g.setAttribute("color", new THREE.BufferAttribute(c, 3));
-  const LAV = 1600, lav = new THREE.InstancedMesh(g, windify(std("#ffffff", .7, { vertexColors: true }), { amp: .28, height: 1, glow: .06, trans: 1.1, key: "lav" }), LAV);
+  const LAV = MOBILE ? 0 : 1600, lav = new THREE.InstancedMesh(g, windify(std("#ffffff", .7, { vertexColors: true }), { amp: .28, height: 1, glow: .06, trans: 1.1, key: "lav" }), LAV);
   let k = 0;
   for (let i = 0; k < LAV && i < 60000; i++) {
     const x = rand(-14, 16), z = rand(-16, 4), h = H(x, z);
@@ -874,7 +943,7 @@ const onIsland = (minH = .25) => { for (let i = 0; i < 200; i++) { const x = ran
   for (let i = 0; i < p.count; i++) { const y = p.getY(i) + .55; p.setXYZ(i, p.getX(i), y * .85, y * y * .55); }
   frond.computeVertexNormals();
   const fernMat = windify(std("#ffffff", .75, { map: fernTex, alphaTest: .45, side: THREE.DoubleSide }), { amp: .12, height: 1, glow: .04, trans: 1.3, key: "fern" });
-  const FERNS = 46, PER = 8, ferns = new THREE.InstancedMesh(frond, fernMat, FERNS * PER);
+  const FERNS = MOBILE ? 0 : 46, PER = 8, ferns = new THREE.InstancedMesh(frond, fernMat, FERNS * PER);
   ferns.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: fernTex, alphaTest: .45 });
   const spots = [[-8.5, -11], [-12, -5.5], [-3, -14], [12.5, -11], [10.5, -3.5], [7, -10], [-6.5, -8.5], [1.5, -14], [3.8, -14.6]];
   let k = 0;
@@ -893,7 +962,8 @@ const onIsland = (minH = .25) => { for (let i = 0; i < 200; i++) { const x = ran
 // cogumelos ao pé das árvores e das pedras
 {
   const MN = 80, stems = new THREE.InstancedMesh(new THREE.CylinderGeometry(.022, .032, .12, 8).translate(0, .06, 0), std("#efe6d2", .8), MN);
-  const caps = new THREE.InstancedMesh(new THREE.SphereGeometry(.07, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, .65, 1).translate(0, .11, 0), std("#ffffff", .6), MN);
+  const caps = new THREE.InstancedMesh(new THREE.SphereGeometry(.07, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, .65, 1).translate(0, .11, 0), std("#ffffff", .6, { emissive: "#5fe6ff", emissiveIntensity: 0 }), MN);
+  NIGHT_GLOW.push({ m: caps.material, day: 0, night: MOBILE ? 2.4 : 1.6 });   // bioluminescentes
   const bases = [[-8.5, -11], [-12, -5.5], [-3, -14], [12.5, -11], [10.5, -3.5], [-2.5, -1.5], [-10, -12], [2.5, -3.5]];
   let k = 0;
   for (let i = 0; k < MN && i < 2000; i++) {
@@ -948,8 +1018,8 @@ const woodMat = std("#ffffff", .9, { map: woodTex });
   const lpost = shadow(new THREE.Mesh(new THREE.CylinderGeometry(.05, .06, 1.3, 8), barkMat)); lpost.position.set(.68, 1.1, 7.2); pier.add(lpost);
   const lamp = new THREE.Mesh(new THREE.BoxGeometry(.2, .26, .2), new THREE.MeshStandardMaterial({ color: "#3a2a1a", emissive: "#ffb85a", emissiveIntensity: 4 }));
   lamp.position.set(.68, 1.88, 7.2); pier.add(lamp);
-  const lampLight = new THREE.PointLight("#ffb060", 3, 6, 2); lampLight.position.copy(lamp.position); pier.add(lampLight);
-  updaters.push(t => { lamp.material.emissiveIntensity = 3.6 + Math.sin(t * 7) * .25 + Math.sin(t * 13) * .15; lampLight.intensity = 2.6 + Math.sin(t * 7) * .3; });
+  const lampLight = new THREE.PointLight("#ffb060", 3, 6, 2); lampLight.position.copy(lamp.position); if (!MOBILE) pier.add(lampLight);   // celular: só o brilho emissivo, sem luz pontual
+  updaters.push(t => { const k = 1 + NIGHT.v * 1.8; lamp.material.emissiveIntensity = (3.6 + Math.sin(t * 7) * .25 + Math.sin(t * 13) * .15) * k; lampLight.intensity = (2.6 + Math.sin(t * 7) * .3) * (1 + NIGHT.v * 2.5); });
   // barco
   const hull = new THREE.SphereGeometry(1, 28, 12, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2); hull.scale(.6, .34, 1.6);
   const boat = new THREE.Group();
@@ -963,7 +1033,7 @@ const woodMat = std("#ffffff", .9, { map: woodTex });
 
 // pétalas boiando, levadas devagar pelo vento
 {
-  const FP = 110, fp = new THREE.InstancedMesh(new THREE.PlaneGeometry(.1, .08).rotateX(-Math.PI / 2), std("#f7c4cc", .7, { side: THREE.DoubleSide, emissive: "#f29ab0", emissiveIntensity: .1 }), FP);
+  const FP = MOBILE ? 0 : 110, fp = new THREE.InstancedMesh(new THREE.PlaneGeometry(.1, .08).rotateX(-Math.PI / 2), std("#f7c4cc", .7, { side: THREE.DoubleSide, emissive: "#f29ab0", emissiveIntensity: .1 }), FP);
   const data = [];
   for (let i = 0; i < FP; i++) { let x, z; do { x = rand(-18, 22); z = rand(-14, 12); } while (H(x, z) > -.3); data.push({ x, z, r: rand(0, 6), s: rand(.2, .5) }); }
   surfaceOnly.push(fp); scene.add(fp);
@@ -977,15 +1047,33 @@ const woodMat = std("#ffffff", .9, { map: woodTex });
   });
 }
 
+// gravetos boiando à deriva
+{
+  const FT = 22, ft = new THREE.InstancedMesh(new THREE.CylinderGeometry(.012, .018, 1, 5).rotateZ(Math.PI / 2), std("#5e4636", .9), FT);
+  const data = [];
+  for (let i = 0; i < FT; i++) { let x, z; do { x = rand(-18, 22); z = rand(-12, 12); } while (H(x, z) > -.4); data.push({ x, z, r: rand(0, 6), l: rand(.25, .7), s: rand(.15, .35) }); }
+  surfaceOnly.push(ft); scene.add(ft);
+  updaters.push((t, dt) => {
+    data.forEach((d, i) => {
+      d.x += dt * d.s * .2; if (d.x > 22) d.x = -18; d.r += dt * .05;
+      const out = H(d.x, d.z) > -.15;
+      dummy.position.set(d.x, .02 + Math.sin(t * 1.2 + i) * .008, d.z); dummy.rotation.set(Math.sin(t + i) * .04, d.r, 0);
+      dummy.scale.set(out ? 0 : d.l, 1, 1); dummy.updateMatrix(); ft.setMatrixAt(i, dummy.matrix);
+    });
+    ft.instanceMatrix.needsUpdate = true;
+  });
+}
+
 // anéis de ondulação (peixes, libélulas tocando a água)
 const rings = Array.from({ length: 10 }, () => {
   const r = new THREE.Mesh(new THREE.RingGeometry(.92, 1, 64).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: "#fff2d6", transparent: true, opacity: 0, depthWrite: false, fog: false }));
   r.position.y = .01; r.userData.life = 1; surfaceOnly.push(r); scene.add(r); return r;
 });
-const ripple = (x, z, size = 1) => { const r = rings.find(o => o.userData.life >= 1) || rings[0]; r.position.set(x, .01, z); r.userData = { life: 0, size }; };
+// ondas de peixes, libélulas e clique: só a onda no shader da água (o anel desenhado virava um círculo cinza)
+const ripple = (x, z, size = 1) => addRip(x, z, .9 * size);
 updaters.push((t, dt) => rings.forEach(r => {
   const d = r.userData; if (d.life >= 1) { r.material.opacity = 0; return; }
-  d.life = Math.min(1, d.life + dt * .55); r.scale.setScalar(.05 + d.life * 1.4 * d.size); r.material.opacity = (1 - d.life) * .55;
+  d.life = Math.min(1, d.life + dt * .55); r.scale.setScalar(.05 + d.life * 1.4 * d.size); r.material.opacity = (1 - d.life) * (MOBILE ? .22 : .55);
 }));
 
 // peixes saltando
@@ -1032,46 +1120,108 @@ updaters.push((t, dt) => rings.forEach(r => {
   });
 }
 
+// celular: elementos de natureza sem folhas — seixos, pilhas de pedra, montes de musgo lisos
+if (MOBILE) {
+  // seixos espalhados pela ilha e pela margem
+  const PB = 130, pebbles = new THREE.InstancedMesh(rockGeos[1], rockMat, PB);
+  let k = 0;
+  for (let i = 0; k < PB && i < 4000; i++) {
+    const x = rand(-12, 15), z = rand(-14, 4), h = H(x, z);
+    if (h < -.2) continue;
+    const sc = rand(.08, .22);
+    setInst(pebbles, k++, [x, Math.max(h, -.05) - sc * .25, z], [0, rand(0, 6), 0], [sc * rand(1, 1.5), sc * rand(.5, .8), sc * rand(1, 1.4)]);
+  }
+  pebbles.count = k; scene.add(shadow(pebbles));
+  // montes de musgo lisos (forma orgânica, sem folhas)
+  const moundGeo = rockGeos[3].clone(); moundGeo.deleteAttribute("color");
+  const MD = 46, mounds = new THREE.InstancedMesh(moundGeo, std("#ffffff", .95, { emissive: "#38e0a8", emissiveIntensity: 0 }), MD);
+  NIGHT_GLOW.push({ m: mounds.material, day: 0, night: .07 });   // musgo bioluminescente à noite
+  k = 0;
+  for (let i = 0; k < MD && i < 4000; i++) {
+    const x = rand(-14, 16), z = rand(-16, 3), h = H(x, z);
+    if (h < .3) continue;
+    const sc = rand(.35, .9);
+    setInst(mounds, k++, [x, h - sc * .35, z], [0, rand(0, 6), 0], [sc * 1.5, sc * .6, sc * 1.3], pick(["#5f8a3a", "#76984a", "#8aa456", "#4f7a32"]));
+  }
+  mounds.count = k; scene.add(shadow(mounds));
+  // tufos de musgo baixos
+  const TF = 420, tufts = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), std("#ffffff", 1), TF);
+  k = 0;
+  for (let i = 0; k < TF && i < 20000; i++) {
+    const x = rand(-14, 16), z = rand(-16, 4), h = H(x, z);
+    if (h < .22 || fbm(x * .3 + 9, z * .3, 2) < .45) continue;
+    const sc = rand(.07, .2);
+    setInst(tufts, k++, [x, h - sc * .12, z], [0, rand(0, 6), 0], [sc * rand(1.4, 2.2), sc * rand(.12, .2), sc * rand(1.3, 2)], pick(["#5a7a34", "#66843a", "#728c40", "#5f7e36"]));   // achatados: manchas de musgo, não bolinhas
+  }
+  tufts.count = k; scene.add(tufts);
+  // gravetos caídos
+  const TW = 170, twigs = new THREE.InstancedMesh(new THREE.CylinderGeometry(.008, .014, 1, 5).rotateZ(Math.PI / 2), std("#6b5340", .95), TW);
+  k = 0;
+  for (let i = 0; k < TW && i < 8000; i++) {
+    const x = rand(-14, 16), z = rand(-16, 4), h = H(x, z);
+    if (h < .2) continue;
+    setInst(twigs, k++, [x, h + .01, z], [rand(-.08, .08), rand(0, 6.28), rand(-.06, .06)], [rand(.15, .55), rand(.7, 1.4), rand(.7, 1.4)]);
+  }
+  twigs.count = k; scene.add(twigs);
+
+
+  // flores de lótus boiando perto da ilha (só a flor, sem a folha)
+  for (let i = 0, n = 0; n < 9 && i < 3000; i++) {
+    const x = rand(-14, 18), z = rand(-16, 10), h = H(x, z);
+    if (h > -.5 || h < -1.3 || Math.hypot(x - 4.8, z - 9) < 4.5) continue;
+    const l = shadow(new THREE.Mesh(lotusGeo, lotusMat)); l.position.set(x, .06, z); l.rotation.y = rand(0, 6); l.scale.setScalar(rand(1, 1.4));
+    scene.add(l); n++;
+  }
+}
+
 const fogCards = [];
 // o vento empurra a névoa em +x; cada camada tem sua velocidade, e as rajadas
 // abrem "buracos" que viajam junto, levando partes da névoa embora
+const fogTex = (() => {
+  const t = canvasTex(256, (x) => pixels(x, 256, (i, j) => { const v = pfbm(i / 256 * 4, j / 256 * 4, 4, 4, 5) * 255; return [v, v, v]; }), { srgb: false });
+  return t;
+})();
 function fogCard(w, h, pos, { horiz = false, opacity = .5, seed = 0, speed = .03 } = {}) {
   const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h, 1, 1), new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, fog: false,
-    uniforms: { uTime: U.time, uSeed: { value: seed }, uOpacity: { value: opacity }, uHoriz: { value: horiz ? 1 : 0 }, uSpeed: { value: speed }, sunDir: { value: SUN_DIR }, uColor: { value: new THREE.Color(C.fog) } },
+    uniforms: { uTime: U.time, uSeed: { value: seed }, uOpacity: { value: opacity }, uHoriz: { value: horiz ? 1 : 0 }, uSpeed: { value: speed }, sunDir: { value: SUN_DIR }, uColor: { value: new THREE.Color(C.fog) }, tFog: { value: fogTex } },
     vertexShader: `varying vec2 vUv; varying vec3 vW; void main(){ vUv = uv; vec4 w = modelMatrix * vec4(position, 1.); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
     fragmentShader: `
-      uniform float uTime, uSeed, uOpacity, uHoriz, uSpeed; uniform vec3 sunDir, uColor; varying vec2 vUv; varying vec3 vW; ${GLSL_NOISE}
+      uniform float uTime, uSeed, uOpacity, uHoriz, uSpeed; uniform vec3 sunDir, uColor; uniform sampler2D tFog; varying vec2 vUv; varying vec3 vW; ${GLSL_NOISE}
       void main(){
         float t = uTime * uSpeed;
         vec2 p = uHoriz > .5 ? vW.xz * vec2(.045, .11) : vec2(vW.x * .028, vW.y * .17);
         p += vec2(-t + uSeed, uSeed * 1.7);
+        ${MOBILE ? `
+        vec2 warp = vec2(texture2D(tFog, p * .35 + vec2(-t * .8, t * .15)).r, texture2D(tFog, p * .35 + .37 - vec2(t * .6, 0.)).r);
+        float n = texture2D(tFog, (p + warp * 1.4) * .35).r;
+        float gust = smoothstep(.35, .75, texture2D(tFog, vec2(vW.x * .004 - uTime * uSpeed * .5, uSeed * .1 + uTime * .006)).r);` : `
         vec2 warp = vec2(fbm4(p * 1.4 + vec2(-t * 1.6, t * .3)), fbm4(p * 1.4 + 5.2 - vec2(t * 1.2, 0.)));
         float n = fbm4(p + warp * 1.4);
-        float gust = smoothstep(.35, .75, fbm4(vec2(vW.x * .012 - uTime * uSpeed * 1.8, uSeed + uTime * .02)));
+        float gust = smoothstep(.35, .75, fbm4(vec2(vW.x * .012 - uTime * uSpeed * 1.8, uSeed + uTime * .02)));`}
         float a = smoothstep(.28, .75, n) * mix(1., .35, gust);
         if (uHoriz < .5) a *= pow(1. - vUv.y, 1.3) * smoothstep(0., .2, vUv.x) * smoothstep(1., .8, vUv.x);
         else a *= smoothstep(0., .3, vUv.x) * smoothstep(1., .7, vUv.x) * smoothstep(0., .3, vUv.y) * smoothstep(1., .7, vUv.y);
         vec3 toP = vW - cameraPosition; float d = length(toP);
         a *= smoothstep(5., 20., d) * uOpacity;
         float s = pow(max(dot(toP / d, sunDir), 0.), 5.);
-        gl_FragColor = vec4(mix(uColor, vec3(1.15, .78, .42), s), a);
+        gl_FragColor = vec4(mix(uColor, vec3(1.15, .78, .42), s * clamp(dot(uColor, vec3(.3, .59, .11)) * 2.2, 0., 1.)), a);   // sem brilho de sol à noite
       }`
   }));
   m.position.set(...pos); if (horiz) m.rotation.x = -Math.PI / 2;
   scene.add(m); fogCards.push(m); return m;
 }
 // paredes de névoa ao fundo (mais densas quanto mais longe)
-[[-22, .45], [-28, .5], [-35, .58], [-43, .66], [-54, .78]].forEach(([z, o], i) => fogCard(280, 18, [rand(-10, 10), 6, z], { opacity: o, seed: i * 3.1, speed: .05 + i * .006 }));
+(MOBILE ? [[-24, .5], [-46, .75]] : [[-22, .45], [-28, .5], [-35, .58], [-43, .66], [-54, .78]]).forEach(([z, o], i) => fogCard(280, 18, [rand(-10, 10), 6, z], { opacity: o, seed: i * 3.1, speed: .05 + i * .006 }));
 // véus em volta das ruínas: na frente, entre e atrás dos arcos
-[[-4.5, 6, .32], [-8, 7, .4], [-11.5, 8, .45], [-13.5, 7, .5], [-16, 9, .55]].forEach(([z, h, o], i) => {
+(MOBILE ? [[-8, 7, .4], [-13.5, 7, .5]] : [[-4.5, 6, .32], [-8, 7, .4], [-11.5, 8, .45], [-13.5, 7, .5], [-16, 9, .55]]).forEach(([z, h, o], i) => {
   const c = fogCard(70, h, [rand(-4, 6), h / 2 - .3, z], { opacity: o, seed: 20 + i * 2.3, speed: .09 + i * .01 });
   c.userData.drift = { x: c.position.x, amp: rand(2, 4), f: rand(.04, .08), ph: rand(0, 6) };
 });
 // bruma rasteira sobre a água e sobre o gramado das ruínas
 fogCard(140, 70, [0, .4, -6], { horiz: true, opacity: .32, seed: 9, speed: .1 });
 fogCard(60, 30, [3, 1.1, -9], { horiz: true, opacity: .38, seed: 31, speed: .13 });
-fogCard(130, 60, [0, 1.8, -20], { horiz: true, opacity: .3, seed: 13, speed: .08 });
+if (!MOBILE) fogCard(130, 60, [0, 1.8, -20], { horiz: true, opacity: .3, seed: 13, speed: .08 });
 
 // =====================================================================
 // VIDA
@@ -1092,10 +1242,10 @@ const birds = Array.from({ length: 0 }, (_, i) => {   // removidos: ficavam esco
   b.add(L, R); b.userData = { L, R, ph: rand(0, 6), off: new THREE.Vector3(-i * 2.2 + rand(-1, 1), Math.abs(i - 5) * -.8 + rand(-.4, .4), rand(-2, 2)) };
   b.scale.setScalar(1.4); scene.add(b); return b;
 });
-const PET = 220, petals = new THREE.InstancedMesh(new THREE.PlaneGeometry(.09, .07), std("#f7c4cc", .6, { side: THREE.DoubleSide, emissive: "#f29ab0", emissiveIntensity: .2 }), PET);
+const PET = MOBILE ? 0 : 220, petals = new THREE.InstancedMesh(new THREE.PlaneGeometry(.09, .07), std("#f7c4cc", .6, { side: THREE.DoubleSide, emissive: "#f29ab0", emissiveIntensity: .2 }), PET);
 const petalData = Array.from({ length: PET }, () => ({ p: new THREE.Vector3(12.5 + rand(-3, 3), rand(0, 9), -11 + rand(-3, 3)), r: rand(0, 6), s: rand(.4, 1) }));
 scene.add(petals);
-const PN2 = 400, pg = new THREE.BufferGeometry(), pa = new Float32Array(PN2 * 3), seeds = new Float32Array(PN2);
+const PN2 = MOBILE ? 260 : 400, pg = new THREE.BufferGeometry(), pa = new Float32Array(PN2 * 3), seeds = new Float32Array(PN2);
 for (let i = 0; i < PN2; i++) { pa.set([rand(-20, 22), rand(0, 10), rand(-20, 12)], i * 3); seeds[i] = rand(0, 10); }
 pg.setAttribute("position", new THREE.BufferAttribute(pa, 3));
 const pollen = new THREE.Points(pg, new THREE.PointsMaterial({ map: glowTex, color: "#ffd890", size: .2, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
@@ -1133,18 +1283,20 @@ composer.addPass(new ShaderPass({
   uniforms: { tDiffuse: { value: null }, uTime: U.time },
   vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }`,
   fragmentShader: `
-    uniform sampler2D tDiffuse; uniform float uTime; varying vec2 vUv;
+    uniform sampler2D tDiffuse; uniform float uTime, uNight; varying vec2 vUv;
     float rnd(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
     void main(){
       vec2 c = vUv - .5; float r = dot(c, c); float ca = .006 * r;
       vec3 col = vec3(texture2D(tDiffuse, vUv + c * ca).r, texture2D(tDiffuse, vUv).g, texture2D(tDiffuse, vUv - c * ca).b);
       col *= 1. - r * .9;
-      col = mix(col, col * vec3(1.1, .97, .78), .6) + vec3(.012, .007, 0.);
+      vec3 warm = mix(col, col * vec3(1.1, .97, .78), .6) + vec3(.012, .007, 0.), cool = col * vec3(.84, .95, 1.16) + vec3(0., .003, .01);
+      col = mix(warm, cool, uNight);
       col += (rnd(vUv * vec2(1731., 977.) + fract(uTime * 7.)) - .5) * .05 * (col + .06);
       gl_FragColor = vec4(max(col, 0.), 1.);
     }`
 }));
 composer.addPass(new OutputPass());
+if (MOBILE) { godRays.enabled = false; bloom.enabled = false; composer.passes[1].enabled = false; }   // celular: só correção de cor   // celular: bloom e correção de cor ficam; só os raios (80 amostras/pixel) saem
 
 // =====================================================================
 // INTERAÇÃO + INTRO
@@ -1160,41 +1312,61 @@ addEventListener("wheel", ev => { if (started) dollyT = THREE.MathUtils.clamp(do
 // rolagem por toque (celular): arrastar para cima avança pelo arco
 let touchY = null;
 addEventListener("touchstart", ev => { touchY = ev.touches[0].clientY; }, { passive: true });
-addEventListener("touchmove", ev => { if (!started || touchY === null) return; const y = ev.touches[0].clientY; dollyT = THREE.MathUtils.clamp(dollyT + (touchY - y) * .0025, 0, 1); touchY = y; }, { passive: true });
+addEventListener("touchmove", ev => { if (!started || touchY === null) return; const y = ev.touches[0].clientY;
+  mouse.x = ev.touches[0].clientX / innerWidth - .5; mouse.y = y / innerHeight - .5; cur.x = ev.touches[0].clientX; cur.y = y; dollyT = THREE.MathUtils.clamp(dollyT + (touchY - y) * .0025, 0, 1); touchY = y; }, { passive: true });
 addEventListener("touchend", () => { touchY = null; });
 
 // ---------- hover na água: rastro de ondulação; clique = onda maior ----------
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), waterPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hit = new THREE.Vector3(), lastRip = new THREE.Vector3(1e9, 0, 0);
 let ripI = 0, lastRipT = 0, overWater = false, overText = false;
 // mapa do rastro em coordenadas de mundo (área de água visível), lido pelo shader da água
-const TR = 512, TRAIL = { x: -22, z: -12, w: 48, d: 28 }, BRUSH = .9;   // pincel ~0,9 m: um pouco maior que o cursor
+const lastCur = { x: -1, y: -1 };
+let trailUntil = 0;
+const TR = MOBILE ? 256 : 512, TRAIL = { x: -22, z: -12, w: 48, d: 28 }, BRUSH = .9;   // pincel ~0,9 m: um pouco maior que o cursor
 const trailCanvas = document.createElement("canvas"); trailCanvas.width = trailCanvas.height = TR;
 const tctx = trailCanvas.getContext("2d"); tctx.fillStyle = "#000"; tctx.fillRect(0, 0, TR, TR);
 const trailTex = new THREE.CanvasTexture(trailCanvas); trailTex.flipY = false; trailTex.colorSpace = THREE.NoColorSpace;
 const brush = document.createElement("canvas"); brush.width = brush.height = 64;
-{ const b = brush.getContext("2d"), g = b.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, "rgba(255,255,255,.24)"); g.addColorStop(1, "rgba(255,255,255,0)"); b.fillStyle = g; b.fillRect(0, 0, 64, 64); }
+{ const b = brush.getContext("2d"), g = b.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, "rgb(150,150,150)"); g.addColorStop(1, "rgb(0,0,0)"); b.fillStyle = g; b.fillRect(0, 0, 64, 64); }
 water.material.uniforms.tTrail.value = trailTex;
+// mapa de profundidade da água, calculado uma vez a partir do relevo
+{
+  const DS = 256, DR = { x: -40, z: -30, w: 84, d: 52 };
+  const dc = document.createElement("canvas"); dc.width = dc.height = DS;
+  const dx = dc.getContext("2d"), img = dx.createImageData(DS, DS);
+  for (let j = 0; j < DS; j++) for (let i = 0; i < DS; i++) {
+    const v = Math.min(Math.max(-H(DR.x + (i + .5) / DS * DR.w, DR.z + (j + .5) / DS * DR.d) / 1.4, 0), 1) * 255, k = (j * DS + i) * 4;
+    img.data[k] = img.data[k + 1] = img.data[k + 2] = v; img.data[k + 3] = 255;
+  }
+  dx.putImageData(img, 0, 0);
+  const dt = new THREE.CanvasTexture(dc); dt.flipY = false; dt.colorSpace = THREE.NoColorSpace;
+  water.material.uniforms.tDepthW.value = dt;
+  water.material.uniforms.uDepthRect.value.set(DR.x, DR.z, DR.w, DR.d);
+}
 water.material.uniforms.uTrailRect.value.set(TRAIL.x, TRAIL.z, TRAIL.w, TRAIL.d);
-const addRip = (x, z, s) => { water.material.uniforms.uRip.value[ripI].set(x, z, U.time.value, s); ripI = (ripI + 1) % 16; };
+const addRip = (x, z, s) => { water.material.uniforms.uRip.value[ripI].set(x, z, U.time.value, s); ripI = (ripI + 1) % (MOBILE ? 8 : 16); };
 updaters.push(t => {
   if (!started) return;
   ndc.set(mouse.x * 2, -mouse.y * 2); ray.setFromCamera(ndc, camera);
   overWater = !overText && !!ray.ray.intersectPlane(waterPlane, hit) && H(hit.x, hit.z) < -.05 && hit.distanceTo(camera.position) < 60;
   cursor.classList.toggle("water", overWater);
   // rastro: a esteira some aos poucos e o mouse pinta pinceladas suaves ao longo do caminho
-  tctx.globalCompositeOperation = "source-over"; tctx.fillStyle = "rgba(0,0,0,.08)"; tctx.fillRect(0, 0, TR, TR);
-  if (overWater) {
+  const trailLive = t < trailUntil;
+  if (trailLive) { tctx.globalCompositeOperation = "source-over"; tctx.fillStyle = "rgba(0,0,0,.08)"; tctx.fillRect(0, 0, TR, TR); }
+  // só pinta quando o ponteiro realmente se move na tela (dedo parado ou câmera flutuando não acumulam)
+  const moved = Math.hypot(cur.x - lastCur.x, cur.y - lastCur.y) > 1.5; lastCur.x = cur.x; lastCur.y = cur.y;
+  if (overWater && moved) {
     const px = (hit.x - TRAIL.x) / TRAIL.w * TR, py = (hit.z - TRAIL.z) / TRAIL.d * TR;
     if (lastRip.x < 1e8) {
       const lx = (lastRip.x - TRAIL.x) / TRAIL.w * TR, ly = (lastRip.z - TRAIL.z) / TRAIL.d * TR, steps = Math.min(40, Math.ceil(Math.hypot(px - lx, py - ly) / 2));
-      tctx.globalCompositeOperation = "lighter";
+      tctx.globalCompositeOperation = "lighten";   // máximo, não soma: o rastro nunca satura num disco chapado
       for (let s = 1; s <= steps; s++) { const u = s / steps; { const bw = BRUSH / TRAIL.w * TR, bh = BRUSH / TRAIL.d * TR; tctx.drawImage(brush, lx + (px - lx) * u - bw / 2, ly + (py - ly) * u - bh / 2, bw, bh); } }
     }
-    lastRip.copy(hit);
-  } else lastRip.set(1e9, 0, 0);
-  trailTex.needsUpdate = true;
+    lastRip.copy(hit); trailUntil = t + 2.5;
+  } else if (!overWater) lastRip.set(1e9, 0, 0);
+  if (trailLive) trailTex.needsUpdate = true;   // sem rastro: nada de reenviar a textura
 });
-addEventListener("pointerdown", () => { if (overWater) { addRip(hit.x, hit.z, 1.5); ripple(hit.x, hit.z, 1.3); } });
+addEventListener("pointerdown", () => { if (overWater) { addRip(hit.x, hit.z, 1.5); } });
 
 // ---------- hover nos textos: distorção líquida (ruído deslocando as letras, animado) ----------
 // Testei três ideias: líquida, separação RGB e onda senoidal. A líquida conversa com a
@@ -1224,6 +1396,7 @@ gsap.ticker.add(() => {
   turbs.forEach((tb, i) => tb.setAttribute("baseFrequency", `${(.025 + Math.sin(t * 2.2 + i) * .007).toFixed(4)} ${(.08 + Math.cos(t * 2.9 + i) * .022).toFixed(4)}`));
 });
 function liquid(el, kind, radius) {
+  if (MOBILE) return;   // toque não tem hover: nada de cópia/filtro/máscara no celular
   const base = document.createElement("span"); base.className = "liq-base";
   while (el.firstChild) base.appendChild(el.firstChild);
   const dup = base.cloneNode(true); dup.className = `liq-dup liq-${kind}`; dup.setAttribute("aria-hidden", "true");
@@ -1236,6 +1409,7 @@ function liquid(el, kind, radius) {
   });
   // entrada: raio e força crescem juntos; saída: a ondulação se acalma antes de o raio fechar
   el.addEventListener("mouseenter", () => {
+    el.classList.add("on");
     hovering++;
     gsap.to(st, { r: radius, duration: .55, ease: "power2.out", onUpdate: apply, overwrite: true });
     gsap.to(amp[kind], { s: amp[kind].max, duration: .7, ease: "power2.inOut", overwrite: true });
@@ -1243,7 +1417,7 @@ function liquid(el, kind, radius) {
   el.addEventListener("mouseleave", () => {
     hovering = Math.max(0, hovering - 1);
     gsap.to(amp[kind], { s: 0, duration: .9, ease: "power2.out", overwrite: true });
-    gsap.to(st, { r: 0, duration: 1.1, delay: .15, ease: "power2.inOut", onUpdate: apply, overwrite: true });
+    gsap.to(st, { r: 0, duration: 1.1, delay: .15, ease: "power2.inOut", onUpdate: apply, overwrite: true, onComplete: () => el.classList.remove("on") });
   });
 }
 document.querySelectorAll(".hero h1 > .mask").forEach(el => liquid(el, "big", 70));
@@ -1274,7 +1448,7 @@ document.getElementById("enter").onclick = () => {
   started = true;
   gsap.timeline()
     .to("#intro", { clipPath: "inset(0 0 100% 0)", duration: 1.2, ease: "expo.inOut" })
-    .to(camera.position, { z: MOBILE ? ARCH_C.z + ARCH_N.z * MOB_DIST : 15, duration: 3, ease: "expo.out" }, .3)
+    .to(camera.position, { z: MOBILE ? 11.5 : 15, duration: 3, ease: "expo.out" }, .3)
     .set(".ui", { opacity: 1 }, .9)
     .from(".hero .mask>span", { yPercent: 110, duration: 1.2, stagger: .1, ease: "expo.out" }, 1)
     .from(".cta,header,footer", { opacity: 0, y: 14, duration: 1, stagger: .1, ease: "expo.out" }, 1.3)
@@ -1285,9 +1459,115 @@ document.getElementById("enter").onclick = () => {
 // =====================================================================
 // LOOP
 // =====================================================================
+if (MOBILE) scene.traverse(o => { if (o.isInstancedMesh || (o.isMesh && o.geometry && o.scale.x < .45 && o.material === rockMat)) o.castShadow = false; });
+// =====================================================================
+// MODO NOITE
+// =====================================================================
+NIGHT_GLOW.push({ m: lotusMat, day: .12, night: 1.1 });
+const DAY = {
+  fog: scene.fog.color.clone(), sunC: sunLight.color.clone(), sunI: sunLight.intensity, fillI: fill.intensity, exp: renderer.toneMappingExposure,
+  hemi: scene.children.find(o => o.isHemisphereLight), bloomS: bloom.strength, bloomT: bloom.threshold
+};
+DAY.hemiSky = DAY.hemi.color.clone(); DAY.hemiGround = DAY.hemi.groundColor.clone(); DAY.hemiI = DAY.hemi.intensity;
+const NIGHTC = { fog: new THREE.Color("#1b2438"), sun: new THREE.Color("#7f96d6"), hemiSky: new THREE.Color("#3a4a78"), hemiGround: new THREE.Color("#141a24") };
+composer.passes.forEach(p => { if (p.material && p.material.fragmentShader.includes("uNight")) p.uniforms.uNight = { value: 0 }; });
+
+// vagalumes: pontos brilhantes que vagam e piscam; alguns carregam luz de verdade
+const FF = MOBILE ? 110 : 150, ffGeo = new THREE.BufferGeometry(), ffPos = new Float32Array(FF * 3), ffCol = new Float32Array(FF * 3), ffSeed = [];
+for (let i = 0; i < FF; i++) ffSeed.push({ x: rand(-12, 16), y: rand(.3, 2.8), z: rand(-14, 9), a: rand(0, 6), b: rand(0, 6), s: rand(.3, .8), blink: rand(.4, 1.4), ph: rand(0, 6) });
+ffGeo.setAttribute("position", new THREE.BufferAttribute(ffPos, 3)); ffGeo.setAttribute("color", new THREE.BufferAttribute(ffCol, 3));
+const fireflies = new THREE.Points(ffGeo, new THREE.PointsMaterial({ map: glowTex, size: MOBILE ? .32 : .28, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+fireflies.visible = false; scene.add(fireflies);
+const ffLights = Array.from({ length: MOBILE ? 3 : 5 }, () => { const l = new THREE.PointLight("#c6ff6a", 0, 6, 2); scene.add(l); return l; });
+
+// velas na base do arco principal (chamas tremulando + luz quente)
+const candles = new THREE.Group(), flames = [];
+const flameMat = new THREE.MeshStandardMaterial({ color: "#ffcf7a", emissive: "#ff9a3c", emissiveIntensity: 0 });
+[[-1.3, .78], [-.7, .9], [.2, .8], [.9, .95], [1.4, .76], [-.2, -.85], [.8, -.8]].forEach(([x, z], i) => {
+  const h = rand(.12, .3), c = shadow(new THREE.Mesh(new THREE.CylinderGeometry(.045, .05, h, 10), std("#efe4cc", .7)));
+  c.position.set(x, .2 + h / 2, z); candles.add(c);
+  const f = new THREE.Mesh(new THREE.ConeGeometry(.025, .09, 8), flameMat); f.position.set(x, .2 + h + .05, z); f.userData.ph = i * 1.7; candles.add(f); flames.push(f);
+});
+const candleLight = new THREE.PointLight("#ffa04a", 0, 7, 2); candleLight.position.set(0, .7, .9); candles.add(candleLight);
+arch.add(candles);
+
+// lanternas de papel boiando no lago (aparecem acesas à noite, refletidas na água)
+const lanterns = [];
+for (let i = 0, n = 0; n < (MOBILE ? 8 : 9) && i < 4000; i++) {
+  const x = rand(-12, 18), z = rand(-6, 11); if (H(x, z) > -.5 || Math.hypot(x - 4.8, z - 9) < 3) continue;
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(.24, .04, .24), std("#3a2a1c", .9)));
+  const paper = new THREE.Mesh(new THREE.BoxGeometry(.2, .26, .2), new THREE.MeshStandardMaterial({ color: "#ffe2b0", emissive: "#ff9a40", emissiveIntensity: 0, roughness: .8 }));
+  paper.position.y = .15; g.add(paper);
+  g.position.set(x, .03, z); g.userData = { x, z, ph: rand(0, 6), s: rand(.05, .12), paper }; g.scale.setScalar(0);
+  scene.add(g); lanterns.push(g); n++;
+}
+
+let nightApplied = -1;
+function applyNight(n) {
+  U.night.value = n;
+  scene.fog.color.copy(DAY.fog).lerp(NIGHTC.fog, n);
+  water.material.uniforms.fogColor.value.copy(scene.fog.color);
+  water.material.uniforms.uNight.value = n;
+  fogCards.forEach(c => c.material.uniforms.uColor.value.copy(scene.fog.color));
+  sky.material.uniforms.uNight.value = n;
+  sunLight.color.copy(DAY.sunC).lerp(NIGHTC.sun, n); sunLight.intensity = THREE.MathUtils.lerp(DAY.sunI, .55, n);
+  fill.intensity = THREE.MathUtils.lerp(DAY.fillI, .25, n);
+  DAY.hemi.color.copy(DAY.hemiSky).lerp(NIGHTC.hemiSky, n); DAY.hemi.groundColor.copy(DAY.hemiGround).lerp(NIGHTC.hemiGround, n);
+  DAY.hemi.intensity = THREE.MathUtils.lerp(DAY.hemiI, .45, n);
+  renderer.toneMappingExposure = THREE.MathUtils.lerp(DAY.exp, .95, n);
+  bloom.strength = THREE.MathUtils.lerp(DAY.bloomS, .5, n); bloom.threshold = THREE.MathUtils.lerp(DAY.bloomT, .95, n);   // só as fontes de luz brilham
+  if (MOBILE) bloom.enabled = n > .02;   // no celular o bloom só liga à noite (é o que faz as luzes brilharem)
+  composer.passes.forEach(p => { if (p.uniforms && p.uniforms.uNight) p.uniforms.uNight.value = n; });
+  NIGHT_GLOW.forEach(g => { g.m.emissiveIntensity = THREE.MathUtils.lerp(g.day, g.night, n); });
+  pollen.visible = n < .6; fireflies.visible = n > .01;
+  butterflies.forEach(b => { b.visible = n < .5; });
+  lanterns.forEach(l => l.scale.setScalar(Math.min(1, n * 1.6)));
+}
+updaters.push((t, dt) => {
+  const n = NIGHT.v;
+  if (Math.abs(n - nightApplied) > .001) { applyNight(n); nightApplied = n; }
+  if (n < .01) { ffLights.forEach(l => l.intensity = 0); candleLight.intensity = 0; return; }
+  // vagalumes
+  for (let i = 0; i < FF; i++) {
+    const f = ffSeed[i], tt = t * f.s;
+    const x = f.x + Math.sin(tt + f.a) * 1.6 + Math.sin(tt * 2.3 + f.b) * .4, z = f.z + Math.cos(tt * .8 + f.b) * 1.6, y = f.y + Math.sin(tt * 1.7 + f.a) * .35;
+    ffPos.set([x, y, z], i * 3);
+    const blink = Math.pow(Math.max(0, Math.sin(t * f.blink + f.ph)), 3) * .85 + .15, k = blink * n * 1.6;
+    ffCol.set([.78 * k, 1 * k, .35 * k], i * 3);
+    if (i < ffLights.length) { ffLights[i].position.set(x, y, z); ffLights[i].intensity = 3.2 * blink * n; }
+  }
+  ffGeo.attributes.position.needsUpdate = true; ffGeo.attributes.color.needsUpdate = true;
+  // velas
+  flameMat.emissiveIntensity = 3.5 * n;
+  flames.forEach(f => { const w = 1 + Math.sin(t * 13 + f.userData.ph) * .15 + Math.sin(t * 23 + f.userData.ph) * .08; f.scale.set(1, w, 1); f.rotation.z = Math.sin(t * 5 + f.userData.ph) * .08; });
+  candleLight.intensity = (4 + Math.sin(t * 11) * .5 + Math.sin(t * 17) * .3) * n;
+  // lanternas boiando
+  lanterns.forEach((l, i) => {
+    const d = l.userData; l.position.x = d.x + Math.sin(t * d.s + d.ph) * .8; l.position.z = d.z + Math.cos(t * d.s * .7 + d.ph) * .5;
+    l.position.y = .03 + Math.sin(t * 1.1 + d.ph) * .015; l.rotation.y = t * .05 + d.ph;
+    d.paper.material.emissiveIntensity = (2.4 + Math.sin(t * 3 + d.ph) * .3) * n;
+  });
+});
+
+// botão dia/noite
+const nightBtn = document.getElementById("nightBtn");
+nightBtn.addEventListener("click", () => {
+  const toNight = NIGHT.v < .5;
+  gsap.to(NIGHT, { v: toNight ? 1 : 0, duration: 2.6, ease: "power2.inOut", overwrite: true });
+  nightBtn.textContent = toNight ? "☀" : "☾";
+});
+
 const sm = { x: 0, y: 0 };
 const clock = new THREE.Clock(), look = new THREE.Vector3(), hero = document.querySelector(".hero"), sunScreen = new THREE.Vector3(), dummy = new THREE.Object3D();
+let frameN = 0, heroOp = -1;
+const setHeroOpacity = v => {
+  v = Math.round(Math.max(0, Math.min(1, v)) * 100) / 100;
+  if (v === heroOp) return;
+  heroOp = v; hero.style.opacity = v; hero.style.visibility = v === 0 ? "hidden" : "";   // invisível = fora da composição
+};
 function frame() {
+  if (MOBILE && frameN++ % 30 === 0) renderer.shadowMap.needsUpdate = true;
   const dt = Math.min(clock.getDelta(), .05), t = clock.elapsedTime;
   U.time.value = t;
   water.material.uniforms.uTime.value = t;
@@ -1326,29 +1606,31 @@ function frame() {
   sm.x += (mouse.x - sm.x) * .085; sm.y += (mouse.y - sm.y) * .085;
   const fx = Math.sin(t * .23) * .45 + Math.sin(t * .61 + 1.3) * .15, fy = Math.sin(t * .37 + .7) * .2 + Math.sin(t * .83) * .05;
   if (MOBILE) {
-    // celular: câmera no eixo do arco principal; a rolagem avança por dentro dele
+    // celular: começa no enquadramento normal e, com a rolagem, alinha no eixo do arco e atravessa o vão
     if (started) dolly += (dollyT - dolly) * .06;
-    const d = MOB_DIST - dolly * (MOB_DIST + 4);
-    // torta de propósito: deslocada para o lado do eixo (diminui ao entrar, para passar pelo vão) e mirando um pouco fora do centro
-    const side = .9 * (1 - dolly * .8);
-    v3.copy(ARCH_C).addScaledVector(ARCH_N, d).addScaledVector(ARCH_P, side);
-    if (!gsap.isTweening(camera.position)) camera.position.z += (v3.z - camera.position.z) * .12;
-    camera.position.x += (v3.x + fx * .25 - camera.position.x) * .12;
-    camera.position.y += (2.9 + fy * .5 + dolly * .4 - camera.position.y) * .12;
-    hero.style.opacity = 1 - dolly * 1.8;
-    look.copy(ARCH_C).addScaledVector(ARCH_N, d - 12).addScaledVector(ARCH_P, .35 * (1 - dolly * .6)); look.y = ARCH_C.y - .1 + Math.sin(t * .43) * .08;
+    const al = THREE.MathUtils.smoothstep(dolly, .02, .4);                   // 0 = normal, 1 = alinhado
+    const d = MOB_DIST - Math.max(0, dolly - .25) / .75 * (MOB_DIST + 4);    // só avança depois de alinhar
+    v3.copy(ARCH_C).addScaledVector(ARCH_N, d); v3.y = 2.9 + dolly * .4;
+    s3.set(.6 + fx * .3, 2.5 + fy * .3, 11.5);                               // posição inicial: perto da ilha, arco à direita
+    s3.lerp(v3, al);
+    if (!gsap.isTweening(camera.position)) camera.position.z += (s3.z - camera.position.z) * .1;
+    camera.position.x += (s3.x - camera.position.x) * .1;
+    camera.position.y += (s3.y - camera.position.y) * .1;
+    setHeroOpacity(1 - dolly * 1.8);
+    look.set(3.4 + Math.sin(t * .29) * .25, 3 + Math.sin(t * .43) * .08, -10)
+      .lerp(v3.copy(ARCH_C).addScaledVector(ARCH_N, d - 12).setY(ARCH_C.y - .1), al);
   } else {
     if (started) {
       dolly += (dollyT - dolly) * .06;
       if (!gsap.isTweening(camera.position)) camera.position.z = 15 - dolly * 9 + Math.sin(t * .19) * .5;
       camera.position.x += (sm.x * 4.2 + fx + dolly * 2.5 - camera.position.x) * .12;
       camera.position.y += (2.7 - sm.y * 1.6 + fy + dolly * .3 - camera.position.y) * .12;
-      hero.style.opacity = 1 - dolly * 1.8;
+      setHeroOpacity(1 - dolly * 1.8);
     }
     look.set(2.5 + dolly * 3 + sm.x * 3.4 + Math.sin(t * .29) * .3, 2.6 - sm.y * 1.4 + Math.sin(t * .43) * .1, -10);
   }
   camera.lookAt(look);
-  camera.rotateZ(-sm.x * .055 + Math.sin(t * .31) * .006 + (MOBILE ? .075 * (1 - dolly * .5) : 0));   // no celular: inclinação proposital
+  camera.rotateZ(-sm.x * .055 + Math.sin(t * .31) * .006);
   sky.position.copy(camera.position);
   camera.updateMatrixWorld();
   U.sunView.value.copy(SUN_DIR).transformDirection(camera.matrixWorldInverse);
@@ -1356,9 +1638,9 @@ function frame() {
   sunScreen.copy(camera.position).addScaledVector(SUN_DIR, 500).project(camera);
   godRays.uniforms.sunPos.value.set(sunScreen.x * .5 + .5, sunScreen.y * .5 + .5);
   const onScreen = sunScreen.z < 1 ? Math.max(0, 1 - Math.max(Math.abs(sunScreen.x), Math.abs(sunScreen.y)) / 1.8) : 0;
-  godRays.uniforms.strength.value = .16 * onScreen;
+  godRays.uniforms.strength.value = .16 * onScreen * (1 - NIGHT.v);
 
-  cursor.style.transform = `translate(${cur.x}px,${cur.y}px)`;
+  if (!MOBILE) cursor.style.transform = `translate(${cur.x}px,${cur.y}px)`;
   composer.render();
   requestAnimationFrame(frame);
 }
