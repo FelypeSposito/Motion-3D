@@ -27,7 +27,7 @@ a,button{color:inherit;font:inherit;background:none;border:0;text-decoration:non
 .hero h1,.hero small{pointer-events:auto}
 .hero h1 > .mask{transition:color .6s}
 .hero h1 > .mask:hover{color:#fff3d0}
-.cta .lbl,nav a,.pill,.logo{display:inline-block}
+nav a,.pill,.logo{display:inline-block}
 .liq{position:relative;--mx:-999px;--my:-999px;--r:0px}
 .liq-base{display:inline-block}
 .liq.on .liq-base{-webkit-mask-image:radial-gradient(circle at var(--mx) var(--my),transparent calc(var(--r)*.35),#000 var(--r));mask-image:radial-gradient(circle at var(--mx) var(--my),transparent calc(var(--r)*.35),#000 var(--r))}
@@ -35,8 +35,6 @@ a,button{color:inherit;font:inherit;background:none;border:0;text-decoration:non
 .liq.on > .liq-dup{display:block;-webkit-mask-image:radial-gradient(circle at var(--mx) var(--my),#000 calc(var(--r)*.35),transparent var(--r));mask-image:radial-gradient(circle at var(--mx) var(--my),#000 calc(var(--r)*.35),transparent var(--r))}
 .liq-dup.liq-big{filter:url(#liq-big)}
 .liq-dup.liq-small{filter:url(#liq-small)}
-.cta .arr{display:inline-block;transition:transform .6s var(--ease)}
-.cta:hover .arr{transform:rotate(-45deg)}
 nav a::after{display:none}
 
 #intro{position:fixed;inset:0;background:var(--cream);z-index:60;display:grid;place-items:center;text-align:center}
@@ -65,8 +63,6 @@ nav a:hover::after{transform:scaleX(1);transform-origin:left}
 .hero h1{font-weight:500;line-height:.86;letter-spacing:-.05em}
 .hero h1 .serif{font-size:clamp(3rem,8vw,7.4rem);letter-spacing:-.03em}
 .hero h1 .sans{font-size:clamp(3.4rem,9.4vw,8.8rem)}
-.cta{pointer-events:auto;display:inline-flex;gap:.5rem;margin-top:2rem;padding:.6rem 1.4rem;border-radius:2rem;background:var(--white);color:var(--ink);text-shadow:none;font-size:.95rem;transition:transform .6s var(--ease),background .4s}
-.cta:hover{transform:scale(1.06);background:var(--sun)}
 footer{position:absolute;bottom:1.6rem;left:2rem;right:2rem;display:flex;justify-content:space-between;align-items:center}
 footer .l{display:flex;gap:1.3rem;align-items:center}
 .pill{padding:.6rem 1.4rem;border:1.5px solid var(--white);border-radius:2rem;color:var(--white);font-size:1rem;transition:background .5s,color .5s}
@@ -100,7 +96,6 @@ footer .l{display:flex;gap:1.3rem;align-items:center}
   <div class="hero">
     <small class="mask"><span>UM ESTÚDIO DE MARCA, DIGITAL & MOTION</span></small>
     <h1><span class="mask"><span class="serif">Onde as ideias</span></span><span class="mask"><span class="sans">florescem</span></span></h1>
-    <a class="cta" href="#">Ver projetos <span>↘</span></a>
   </div>
   <footer>
     <div class="l"><button class="dot" id="nightBtn" aria-label="Alternar dia e noite" title="Dia / noite">☾</button><a class="pill" href="#">Nosso 2025</a></div>
@@ -1371,8 +1366,6 @@ addEventListener("pointerdown", () => { if (overWater) { addRip(hit.x, hit.z, 1.
 // ---------- hover nos textos: distorção líquida (ruído deslocando as letras, animado) ----------
 // Testei três ideias: líquida, separação RGB e onda senoidal. A líquida conversa com a
 // água da cena e com a base (unseen), então ficou ela.
-const cta = document.querySelector(".cta");
-cta.innerHTML = '<span class="lbl">Ver projetos</span><span class="arr">↘</span>';
 const svgNS = "http://www.w3.org/2000/svg", defs = document.createElementNS(svgNS, "svg");
 defs.setAttribute("width", "0"); defs.setAttribute("height", "0"); defs.style.position = "absolute";
 document.body.appendChild(defs);
@@ -1423,15 +1416,9 @@ function liquid(el, kind, radius) {
 document.querySelectorAll(".hero h1 > .mask").forEach(el => liquid(el, "big", 70));
 liquid(document.querySelector(".hero small"), "small", 42);
 document.querySelectorAll("nav a, .pill, .logo").forEach(el => liquid(el, "small", 40));
-liquid(cta.querySelector(".lbl"), "small", 38);
-document.querySelectorAll(".hero h1, .hero small, .cta").forEach(el => {
+document.querySelectorAll(".hero h1, .hero small").forEach(el => {
   el.addEventListener("mouseenter", () => { overText = true; cursor.classList.add("big"); });
   el.addEventListener("mouseleave", () => { overText = false; cursor.classList.remove("big"); });
-});
-// botão magnético: puxa em direção ao cursor
-addEventListener("mousemove", ev => {
-  const r = cta.getBoundingClientRect(), dx = ev.clientX - (r.left + r.width / 2), dy = ev.clientY - (r.top + r.height / 2), near = Math.hypot(dx, dy) < 110;
-  gsap.to(cta, { x: near ? dx * .3 : 0, y: near ? dy * .3 : 0, duration: near ? .4 : .9, ease: near ? "power3.out" : "elastic.out(1,.4)", overwrite: "auto" });
 });
 
 const word = "BLOOM", letterEl = document.getElementById("letter");
@@ -1451,7 +1438,7 @@ document.getElementById("enter").onclick = () => {
     .to(camera.position, { z: MOBILE ? 11.5 : 15, duration: 3, ease: "expo.out" }, .3)
     .set(".ui", { opacity: 1 }, .9)
     .from(".hero .mask>span", { yPercent: 110, duration: 1.2, stagger: .1, ease: "expo.out" }, 1)
-    .from(".cta,header,footer", { opacity: 0, y: 14, duration: 1, stagger: .1, ease: "expo.out" }, 1.3)
+    .from("header,footer", { opacity: 0, y: 14, duration: 1, stagger: .1, ease: "expo.out" }, 1.3)
     .from(".palette span", { scale: 0, duration: .6, stagger: .05, ease: "back.out(2)" }, 1.6)
     .set("#intro", { display: "none" });
 };
