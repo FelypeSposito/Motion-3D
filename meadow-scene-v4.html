@@ -189,7 +189,8 @@ THREE.ShaderChunk.fog_fragment = `#ifdef USE_FOG
 // RENDERER / CENA / LUZ EM CONTRALUZ
 // =====================================================================
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
-const DPR = Math.min(devicePixelRatio, 1.5);
+const MOBILE = matchMedia("(max-width: 768px), (pointer: coarse)").matches;   // celular/tablet: câmera no eixo do arco + menos custo
+const DPR = Math.min(devicePixelRatio, MOBILE ? 1 : 1.5);
 renderer.setPixelRatio(DPR);
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
@@ -601,6 +602,10 @@ function mainArch() {
 }
 const place = (obj, x, z, ry = 0, sink = .4) => { obj.position.set(x, H(x, z) - sink, z); obj.rotation.y = ry; scene.add(obj); return obj; };
 const arch = place(mainArch(), 7, -10, -.24);
+// eixo do arco principal (normal da fachada) e centro do vão: a câmera do celular anda por ele
+const ARCH_N = new THREE.Vector3(Math.sin(arch.rotation.y), 0, Math.cos(arch.rotation.y));
+const ARCH_C = arch.position.clone().add(new THREE.Vector3(0, 4.3, 0)), MOB_DIST = 22;
+if (MOBILE) { camera.fov = 58; camera.updateProjectionMatrix(); }
 
 const ruin = new THREE.Group();
 ruin.add(shadow(new THREE.Mesh(extrude(archShape(4, 6.4, 2.2, 3, [[2, 4.2], [1.6, 4.9], [1.2, 4.4], [.6, 5.7], [.1, 5.1], [-.6, 6.4], [-2, 6.4]]), 1), stoneMatV)));
@@ -755,7 +760,7 @@ const grassKinds = [
   { geo: blade(.12, .38, 1.1), share: .3, n: 0 },
   { geo: seedGeo, share: .15, n: 0, tall: 1.5 }
 ];
-const GN = 48000;
+const GN = MOBILE ? 22000 : 48000;
 grassKinds.forEach((k, i) => { k.mesh = new THREE.InstancedMesh(k.geo, windify(std("#ffffff", .7, { side: THREE.DoubleSide }), { amp: .32, height: 1, blade: true, glow: .05, trans: 2.4, key: "grass" + i }), Math.ceil(GN * k.share)); });
 const grassCols = ["#5d8a38", "#78a048", "#93b456", "#4f7a30", "#a8b860", "#b8ae68"];
 let gn = 0;
@@ -1151,6 +1156,11 @@ document.querySelectorAll("a,button,.palette span").forEach(el => {
   el.addEventListener("mouseleave", () => cursor.classList.remove("big"));
 });
 addEventListener("wheel", ev => { if (started) dollyT = THREE.MathUtils.clamp(dollyT + ev.deltaY * .001, 0, 1); });
+// rolagem por toque (celular): arrastar para cima avança pelo arco
+let touchY = null;
+addEventListener("touchstart", ev => { touchY = ev.touches[0].clientY; }, { passive: true });
+addEventListener("touchmove", ev => { if (!started || touchY === null) return; const y = ev.touches[0].clientY; dollyT = THREE.MathUtils.clamp(dollyT + (touchY - y) * .0025, 0, 1); touchY = y; }, { passive: true });
+addEventListener("touchend", () => { touchY = null; });
 
 // ---------- hover na água: rastro de ondulação; clique = onda maior ----------
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), waterPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hit = new THREE.Vector3(), lastRip = new THREE.Vector3(1e9, 0, 0);
@@ -1263,7 +1273,7 @@ document.getElementById("enter").onclick = () => {
   started = true;
   gsap.timeline()
     .to("#intro", { clipPath: "inset(0 0 100% 0)", duration: 1.2, ease: "expo.inOut" })
-    .to(camera.position, { z: 15, duration: 3, ease: "expo.out" }, .3)
+    .to(camera.position, { z: MOBILE ? ARCH_C.z + ARCH_N.z * MOB_DIST : 15, duration: 3, ease: "expo.out" }, .3)
     .set(".ui", { opacity: 1 }, .9)
     .from(".hero .mask>span", { yPercent: 110, duration: 1.2, stagger: .1, ease: "expo.out" }, 1)
     .from(".cta,header,footer", { opacity: 0, y: 14, duration: 1, stagger: .1, ease: "expo.out" }, 1.3)
@@ -1314,14 +1324,26 @@ function frame() {
   // câmera estilo unseen: reage rápido ao mouse e gira junto, com flutuação contínua
   sm.x += (mouse.x - sm.x) * .085; sm.y += (mouse.y - sm.y) * .085;
   const fx = Math.sin(t * .23) * .45 + Math.sin(t * .61 + 1.3) * .15, fy = Math.sin(t * .37 + .7) * .2 + Math.sin(t * .83) * .05;
-  if (started) {
-    dolly += (dollyT - dolly) * .06;
-    if (!gsap.isTweening(camera.position)) camera.position.z = 15 - dolly * 9 + Math.sin(t * .19) * .5;
-    camera.position.x += (sm.x * 4.2 + fx + dolly * 2.5 - camera.position.x) * .12;
-    camera.position.y += (2.7 - sm.y * 1.6 + fy + dolly * .3 - camera.position.y) * .12;
+  if (MOBILE) {
+    // celular: câmera no eixo do arco principal; a rolagem avança por dentro dele
+    if (started) dolly += (dollyT - dolly) * .06;
+    const d = MOB_DIST - dolly * (MOB_DIST + 4);
+    v3.copy(ARCH_C).addScaledVector(ARCH_N, d);
+    if (!gsap.isTweening(camera.position)) camera.position.z += (v3.z - camera.position.z) * .12;
+    camera.position.x += (v3.x + fx * .25 - camera.position.x) * .12;
+    camera.position.y += (2.9 + fy * .5 + dolly * .4 - camera.position.y) * .12;
     hero.style.opacity = 1 - dolly * 1.8;
+    look.copy(ARCH_C).addScaledVector(ARCH_N, d - 12); look.y = ARCH_C.y - .4 + Math.sin(t * .43) * .08;
+  } else {
+    if (started) {
+      dolly += (dollyT - dolly) * .06;
+      if (!gsap.isTweening(camera.position)) camera.position.z = 15 - dolly * 9 + Math.sin(t * .19) * .5;
+      camera.position.x += (sm.x * 4.2 + fx + dolly * 2.5 - camera.position.x) * .12;
+      camera.position.y += (2.7 - sm.y * 1.6 + fy + dolly * .3 - camera.position.y) * .12;
+      hero.style.opacity = 1 - dolly * 1.8;
+    }
+    look.set(2.5 + dolly * 3 + sm.x * 3.4 + Math.sin(t * .29) * .3, 2.6 - sm.y * 1.4 + Math.sin(t * .43) * .1, -10);
   }
-  look.set(2.5 + dolly * 3 + sm.x * 3.4 + Math.sin(t * .29) * .3, 2.6 - sm.y * 1.4 + Math.sin(t * .43) * .1, -10);
   camera.lookAt(look);
   camera.rotateZ(-sm.x * .055 + Math.sin(t * .31) * .006);
   sky.position.copy(camera.position);
