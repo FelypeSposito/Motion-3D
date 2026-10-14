@@ -605,6 +605,7 @@ const arch = place(mainArch(), 7, -10, -.24);
 // eixo do arco principal (normal da fachada) e centro do vão: a câmera do celular anda por ele
 const ARCH_N = new THREE.Vector3(Math.sin(arch.rotation.y), 0, Math.cos(arch.rotation.y));
 const ARCH_C = arch.position.clone().add(new THREE.Vector3(0, 4.3, 0)), MOB_DIST = 22;
+const ARCH_P = new THREE.Vector3(ARCH_N.z, 0, -ARCH_N.x);   // lateral da fachada
 if (MOBILE) { camera.fov = 58; camera.updateProjectionMatrix(); }
 
 const ruin = new THREE.Group();
@@ -1328,12 +1329,14 @@ function frame() {
     // celular: câmera no eixo do arco principal; a rolagem avança por dentro dele
     if (started) dolly += (dollyT - dolly) * .06;
     const d = MOB_DIST - dolly * (MOB_DIST + 4);
-    v3.copy(ARCH_C).addScaledVector(ARCH_N, d);
+    // torta de propósito: deslocada para o lado do eixo (diminui ao entrar, para passar pelo vão) e mirando um pouco fora do centro
+    const side = .9 * (1 - dolly * .8);
+    v3.copy(ARCH_C).addScaledVector(ARCH_N, d).addScaledVector(ARCH_P, side);
     if (!gsap.isTweening(camera.position)) camera.position.z += (v3.z - camera.position.z) * .12;
     camera.position.x += (v3.x + fx * .25 - camera.position.x) * .12;
     camera.position.y += (2.9 + fy * .5 + dolly * .4 - camera.position.y) * .12;
     hero.style.opacity = 1 - dolly * 1.8;
-    look.copy(ARCH_C).addScaledVector(ARCH_N, d - 12); look.y = ARCH_C.y - .4 + Math.sin(t * .43) * .08;
+    look.copy(ARCH_C).addScaledVector(ARCH_N, d - 12).addScaledVector(ARCH_P, .35 * (1 - dolly * .6)); look.y = ARCH_C.y - .1 + Math.sin(t * .43) * .08;
   } else {
     if (started) {
       dolly += (dollyT - dolly) * .06;
@@ -1345,7 +1348,7 @@ function frame() {
     look.set(2.5 + dolly * 3 + sm.x * 3.4 + Math.sin(t * .29) * .3, 2.6 - sm.y * 1.4 + Math.sin(t * .43) * .1, -10);
   }
   camera.lookAt(look);
-  camera.rotateZ(-sm.x * .055 + Math.sin(t * .31) * .006);
+  camera.rotateZ(-sm.x * .055 + Math.sin(t * .31) * .006 + (MOBILE ? .075 * (1 - dolly * .5) : 0));   // no celular: inclinação proposital
   sky.position.copy(camera.position);
   camera.updateMatrixWorld();
   U.sunView.value.copy(SUN_DIR).transformDirection(camera.matrixWorldInverse);
