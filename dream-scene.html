@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dream Scene</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#2a2526;--pink:#ecd9d8;--white:#fff;--ease:cubic-bezier(.65,.05,0,1)}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;background:var(--pink);color:var(--ink);font-family:'Instrument Sans',sans-serif;cursor:none}
+canvas{position:fixed;inset:0;display:block}
+.serif{font-family:'Instrument Serif',serif;font-style:italic;font-weight:400}
+.mask{overflow:hidden;display:block}.mask>span{display:block}
+a,button{color:inherit;font:inherit;background:none;border:0;text-decoration:none;cursor:none}
+
+/* grão + vinheta */
+.grain{position:fixed;inset:-50%;pointer-events:none;z-index:40;opacity:.18;mix-blend-mode:multiply;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation:grain .5s steps(4) infinite}
+@keyframes grain{25%{transform:translate(-5%,3%)}50%{transform:translate(4%,-6%)}75%{transform:translate(-3%,-2%)}}
+.vignette{position:fixed;inset:0;pointer-events:none;z-index:39;box-shadow:inset 0 0 18vw #6b4a5a40}
+
+/* cursor */
+.cursor{position:fixed;top:0;left:0;width:36px;height:36px;margin:-18px 0 0 -18px;border:1.5px solid var(--ink);border-radius:50%;pointer-events:none;z-index:100;transition:width .4s var(--ease),height .4s var(--ease),margin .4s var(--ease),background .4s}
+.cursor.big{width:70px;height:70px;margin:-35px 0 0 -35px;background:#fff3}
+
+/* intro */
+#intro{position:fixed;inset:0;background:var(--pink);z-index:60;display:grid;place-items:center;text-align:center}
+#intro .letter{font-size:3rem;height:4rem;line-height:4rem}
+#intro .eyes{display:none;gap:4px;justify-content:center;height:4rem}
+.eye{width:30px;height:42px;border:2.5px solid var(--ink);border-radius:50%;background:#fff;position:relative;overflow:hidden}
+.eye i{position:absolute;width:13px;height:17px;border-radius:50%;background:var(--ink);top:50%;left:50%;margin:-8px 0 0 -6px}
+#intro h6{font-size:.75rem;font-weight:500;letter-spacing:.04em;margin:1.2rem 0 .5rem}
+#intro p{font-size:.72rem;max-width:34ch;line-height:1.35;opacity:.75}
+#enter{margin-top:1.6rem;padding:.55rem 1.3rem;border-radius:2rem;background:var(--white);font-size:.8rem;opacity:0}
+
+/* UI */
+.ui{position:fixed;inset:0;z-index:30;pointer-events:none;opacity:0}
+.ui>*{pointer-events:auto}
+header{position:absolute;top:1.6rem;left:2rem;right:2rem;display:flex;justify-content:space-between;align-items:center}
+.logo{font-size:1.9rem;letter-spacing:-.04em}
+.logo sup{font-size:.6rem}
+nav{display:flex;align-items:center;gap:1.6rem;font-size:1.15rem}
+nav a{position:relative}
+nav a::after{content:"";position:absolute;left:0;right:0;bottom:-2px;height:1px;background:currentColor;transform:scaleX(0);transform-origin:right;transition:transform .6s var(--ease)}
+nav a:hover::after{transform:scaleX(1);transform-origin:left}
+.dot{width:46px;height:46px;border-radius:50%;background:var(--white);display:grid;place-items:center;font-size:.9rem;letter-spacing:2px;transition:transform .6s var(--ease)}
+.dot:hover{transform:scale(1.15)}
+.hero{position:absolute;left:50%;top:50%;transform:translate(-50%,-52%);text-align:center;pointer-events:none}
+.hero small{display:block;font-size:clamp(.7rem,1.1vw,1.05rem);letter-spacing:-.02em;margin-bottom:.4rem}
+.hero h1{font-weight:500;line-height:.86;letter-spacing:-.05em}
+.hero h1 .serif{font-size:clamp(3rem,8vw,7.4rem);letter-spacing:-.03em}
+.hero h1 .sans{font-size:clamp(3.4rem,9.4vw,8.8rem)}
+.cta{pointer-events:auto;display:inline-flex;gap:.5rem;margin-top:2rem;padding:.6rem 1.4rem;border-radius:2rem;background:var(--white);font-size:.95rem;transition:transform .6s var(--ease)}
+.cta:hover{transform:scale(1.06)}
+footer{position:absolute;bottom:1.6rem;left:2rem;right:2rem;display:flex;justify-content:space-between;align-items:center}
+footer .l{display:flex;gap:1.3rem;align-items:center}
+.pill{padding:.6rem 1.4rem;border:1.5px solid var(--white);border-radius:2rem;color:var(--white);font-size:1rem;transition:background .5s,color .5s}
+.pill:hover{background:var(--white);color:var(--ink)}
+footer .copy{color:var(--white);font-size:1rem}
+@media (max-width:700px){nav a{display:none}header,footer{left:1rem;right:1rem}.pill{display:none}}
+</style>
+</head>
+<body>
+
+<div class="cursor"></div>
+<div class="grain"></div><div class="vignette"></div>
+
+<div id="intro"><div>
+  <div class="letter" id="letter">N</div>
+  <div class="eyes" id="eyes"><div class="eye"><i></i></div><div class="eye"><i></i></div></div>
+  <h6>NOWHERE STUDIO®</h6>
+  <p>Um estúdio de marca, digital e motion criando ideias inesperadas e visuais marcantes.</p>
+  <button id="enter">Entrar ↘</button>
+</div></div>
+
+<div class="ui">
+  <header>
+    <div class="logo">nowhere<span class="serif">studio</span><sup>®</sup></div>
+    <nav><a href="#">Index</a><a href="#">Projetos</a><a href="#">Contato</a><button class="dot">••</button></nav>
+  </header>
+  <div class="hero">
+    <small class="mask"><span>UM ESTÚDIO DE MARCA, DIGITAL & MOTION</span></small>
+    <h1><span class="mask"><span class="serif">Construindo o</span></span><span class="mask"><span class="sans">improvável</span></span></h1>
+    <a class="cta" href="#">Ver projetos <span>↘</span></a>
+  </div>
+  <footer>
+    <div class="l"><button class="dot">▮▮▮</button><a class="pill" href="#">Nosso 2025</a></div>
+    <button class="dot">◍</button>
+    <span class="copy">©2026</span>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from "three";
+import { Reflector } from "three/addons/objects/Reflector.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+
+// ---------- renderer / cena ----------
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+document.body.prepend(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, .1, 200);
+camera.position.set(0, 3.2, 24);
+
+// céu em gradiente (aparece pelos arcos e janelas)
+const sky = document.createElement("canvas"); sky.width = 2; sky.height = 256;
+const g = sky.getContext("2d").createLinearGradient(0, 0, 0, 256);
+g.addColorStop(0, "#8fb2ee"); g.addColorStop(.55, "#c9c4ef"); g.addColorStop(1, "#f2d4e4");
+sky.getContext("2d").fillStyle = g; sky.getContext("2d").fillRect(0, 0, 2, 256);
+scene.background = new THREE.CanvasTexture(sky);
+scene.background.colorSpace = THREE.SRGBColorSpace;
+scene.fog = new THREE.Fog("#e7c9d2", 25, 70);
+
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), .04).texture;
+scene.environmentIntensity = .35;
+
+// luz
+scene.add(new THREE.HemisphereLight("#fff1f0", "#c9a0b0", 1.3));
+const sun = new THREE.DirectionalLight("#fff0e6", 3);
+sun.position.set(-12, 16, 10);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -22, right: 22, top: 22, bottom: -22 });
+sun.shadow.bias = -.0005;
+scene.add(sun);
+
+// ---------- arquitetura ----------
+const plaster = new THREE.MeshStandardMaterial({ color: "#eac4bd", roughness: .95 });
+const mesh = (geo, mat, pos) => { const m = new THREE.Mesh(geo, mat); m.position.set(...pos); m.castShadow = m.receiveShadow = true; scene.add(m); return m; };
+
+// parede com recortes (arco ou retângulo)
+function wall(w, h, holes) {
+  const s = new THREE.Shape();
+  s.moveTo(-w / 2, 0); s.lineTo(w / 2, 0); s.lineTo(w / 2, h); s.lineTo(-w / 2, h); s.lineTo(-w / 2, 0);
+  holes.forEach(({ x, y, w: hw, h: hh, arch }) => {
+    const p = new THREE.Path(), r = hw / 2;
+    p.moveTo(x - r, y); p.lineTo(x + r, y);
+    if (arch) { p.lineTo(x + r, y + hh); p.absarc(x, y + hh, r, 0, Math.PI, false); }
+    else { p.lineTo(x + r, y + hh); p.lineTo(x - r, y + hh); }
+    p.lineTo(x - r, y);
+    s.holes.push(p);
+  });
+  return new THREE.ExtrudeGeometry(s, { depth: .7, bevelEnabled: false });
+}
+// parede do fundo: janela alta + porta
+mesh(wall(44, 22, [{ x: 7, y: 9, w: 4, h: 8 }, { x: 1.5, y: 4, w: 2.6, h: 5 }]), plaster, [0, -2, -12.7]);
+// parede esquerda com dois arcos
+const left = mesh(wall(22, 22, [{ x: -5, y: 2, w: 4.2, h: 5 }, { x: 4, y: 2, w: 4.2, h: 5 }]), plaster, [-9, -2, -2]);
+left.rotation.y = Math.PI / 2;
+// plataforma direita
+mesh(new THREE.BoxGeometry(14, 4.6, 9), plaster, [10, .3, -7.5]);
+// escada
+for (let i = 0; i < 9; i++) mesh(new THREE.BoxGeometry(7, .32, 1.1), plaster, [0, i * .29, -1 - i * .75]).scale.y = 1 + i * .9;
+// colinas lilases do lado de fora
+const hill = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), new THREE.MeshStandardMaterial({ color: "#c49fcb", roughness: 1 }));
+hill.scale.set(14, 4, 30); hill.position.set(-26, -1, -4); scene.add(hill);
+
+// esfera iridescente
+const orb = mesh(new THREE.SphereGeometry(1.7, 64, 64), new THREE.MeshPhysicalMaterial({
+  color: "#ffffff", roughness: .12, clearcoat: 1, iridescence: 1, iridescenceIOR: 1.6, iridescenceThicknessRange: [200, 900]
+}), [4.6, 4.3, -5.2]);
+
+// pedra (icosaedro deformado)
+const rockGeo = new THREE.IcosahedronGeometry(1.9, 5), v = new THREE.Vector3(), pos = rockGeo.attributes.position;
+for (let i = 0; i < pos.count; i++) {
+  v.fromBufferAttribute(pos, i);
+  const n = .13 * Math.sin(v.x * 2.7) * Math.sin(v.y * 3.4) * Math.sin(v.z * 2.1) + .04 * Math.sin(v.x * 11 + v.z * 9);
+  v.multiplyScalar(1 + n); pos.setXYZ(i, v.x, v.y, v.z);
+}
+rockGeo.computeVertexNormals();
+mesh(rockGeo, new THREE.MeshStandardMaterial({ color: "#c8ab98", roughness: 1 }), [6.5, .2, 2]).scale.set(1.3, .75, 1);
+
+// ---------- água: reflexo com ondulação ----------
+const WaterShader = {
+  uniforms: { color: { value: null }, tDiffuse: { value: null }, textureMatrix: { value: null }, uTime: { value: 0 } },
+  vertexShader: `
+    uniform mat4 textureMatrix; varying vec4 vUv; varying vec3 vW;
+    void main(){ vec4 w = modelMatrix * vec4(position,1.); vW = w.xyz; vUv = textureMatrix * w; gl_Position = projectionMatrix * viewMatrix * w; }`,
+  fragmentShader: `
+    uniform vec3 color; uniform sampler2D tDiffuse; uniform float uTime; varying vec4 vUv; varying vec3 vW;
+    void main(){
+      vec4 uv = vUv;
+      vec2 o = vec2(sin(vW.x*1.4+uTime*1.1)+sin(vW.z*2.6-uTime*.8), cos(vW.z*1.9+uTime*.9)+sin(vW.x*.7-uTime*.6));
+      uv.xy += o * .045 * uv.w;
+      vec3 base = texture2DProj(tDiffuse, uv).rgb;
+      gl_FragColor = vec4(mix(base, color, .28), 1.);
+      #include <tonemapping_fragment>
+      #include <colorspace_fragment>
+    }`
+};
+const water = new Reflector(new THREE.PlaneGeometry(120, 120), {
+  shader: WaterShader, color: "#b9a4cc", clipBias: .003,
+  textureWidth: innerWidth * renderer.getPixelRatio() * .6, textureHeight: innerHeight * renderer.getPixelRatio() * .6
+});
+water.rotation.x = -Math.PI / 2; water.position.y = .25;
+scene.add(water);
+
+// partículas de poeira
+const N = 160, pg = new THREE.BufferGeometry(), pa = new Float32Array(N * 3);
+for (let i = 0; i < N * 3; i += 3) { pa[i] = (Math.random() - .5) * 24; pa[i + 1] = Math.random() * 12; pa[i + 2] = (Math.random() - .5) * 20; }
+pg.setAttribute("position", new THREE.BufferAttribute(pa, 3));
+const dust = new THREE.Points(pg, new THREE.PointsMaterial({ color: "#fff", size: .05, transparent: true, opacity: .7 }));
+scene.add(dust);
+
+// ---------- interação ----------
+const mouse = { x: 0, y: 0 }, cur = { x: innerWidth / 2, y: innerHeight / 2 }, cursor = document.querySelector(".cursor");
+let started = false, dolly = 0, dollyT = 0;
+addEventListener("mousemove", e => {
+  mouse.x = e.clientX / innerWidth - .5; mouse.y = e.clientY / innerHeight - .5;
+  cur.x = e.clientX; cur.y = e.clientY;
+  document.querySelectorAll(".eye i").forEach(p => p.style.transform = `translate(${mouse.x * 14}px,${mouse.y * 16}px)`);
+});
+document.querySelectorAll("a,button").forEach(el => {
+  el.addEventListener("mouseenter", () => cursor.classList.add("big"));
+  el.addEventListener("mouseleave", () => cursor.classList.remove("big"));
+});
+addEventListener("wheel", e => { if (started) dollyT = THREE.MathUtils.clamp(dollyT + e.deltaY * .0012, 0, 1); });
+
+// ---------- intro ----------
+const word = "NOWHERE", letterEl = document.getElementById("letter");
+let li = 0;
+const tick = setInterval(() => { letterEl.textContent = word[li++ % word.length]; }, 140);
+setTimeout(() => {
+  clearInterval(tick); letterEl.style.display = "none";
+  document.getElementById("eyes").style.display = "flex";
+  gsap.from(".eye", { scaleY: 0, duration: .6, stagger: .08, ease: "back.out(2)" });
+  gsap.to("#enter", { opacity: 1, y: 0, duration: .6, delay: .3 });
+}, 1800);
+
+document.getElementById("enter").onclick = () => {
+  started = true;
+  gsap.timeline()
+    .to("#intro", { clipPath: "inset(0 0 100% 0)", duration: 1.2, ease: "expo.inOut" })
+    .to(camera.position, { z: 14, duration: 2.6, ease: "expo.out" }, .3)
+    .set(".ui", { opacity: 1 }, .9)
+    .from(".hero .mask>span", { yPercent: 110, duration: 1.2, stagger: .1, ease: "expo.out" }, 1)
+    .from(".cta,header,footer", { opacity: 0, y: 14, duration: 1, stagger: .1, ease: "expo.out" }, 1.3)
+    .set("#intro", { display: "none" });
+};
+
+// ---------- loop ----------
+const clock = new THREE.Clock(), look = new THREE.Vector3(0, 3, -4), base = { z: 14 };
+function frame() {
+  const t = clock.getElapsedTime();
+  water.material.uniforms.uTime.value = t;
+  orb.position.y = 4.3 + Math.sin(t * .8) * .12;
+  orb.rotation.y = t * .2;
+  dust.rotation.y = t * .015; dust.position.y = Math.sin(t * .3) * .3;
+
+  if (started) {
+    dolly += (dollyT - dolly) * .05;
+    const z = gsap.isTweening(camera.position) ? camera.position.z : 14 - dolly * 7;
+    camera.position.x += (mouse.x * 1.6 - camera.position.x) * .04;
+    camera.position.y += (3.2 - mouse.y * .8 - camera.position.y) * .04;
+    camera.position.z = z;
+    document.querySelector(".hero").style.opacity = 1 - dolly * 1.6;
+  }
+  camera.lookAt(look);
+
+  cursor.style.transform = `translate(${cur.x}px,${cur.y}px)`;
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+frame();
+
+addEventListener("resize", () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
