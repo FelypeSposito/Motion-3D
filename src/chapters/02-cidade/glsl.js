@@ -7,6 +7,8 @@ export const LIGHT_BOX = { x0: -50, x1: 50, z0: -240, z1: 50 };
 export const COMMON_GLSL = /* glsl */`
   uniform vec3 uHaze; uniform float uFogD; uniform sampler2D tLight;
   float hash12(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * .1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+  float vn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f);
+    return mix(mix(hash12(i), hash12(i + vec2(1, 0)), f.x), mix(hash12(i + vec2(0, 1)), hash12(i + vec2(1, 1)), f.x), f.y); }
   // luz difusa dos telões/neons no plano xz (pré-calculada uma vez numa textura pequena)
   vec3 neonLight(vec2 xz) {
     vec2 uv = vec2((xz.x - (${LIGHT_BOX.x0.toFixed(1)})) / ${(LIGHT_BOX.x1 - LIGHT_BOX.x0).toFixed(1)}, (xz.y - (${LIGHT_BOX.z0.toFixed(1)})) / ${(LIGHT_BOX.z1 - LIGHT_BOX.z0).toFixed(1)});

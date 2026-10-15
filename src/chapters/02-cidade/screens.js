@@ -28,6 +28,16 @@ async function titleAtlas(mobile) {
   t.colorSpace = THREE.NoColorSpace; t.anisotropy = 4;
   return t;
 }
+// chamada do hover ("VER PROJETO ↗"), uma faixa 4:1 única
+function ctaTexture(mobile) {
+  const cw = mobile ? 256 : 512, ch = cw / 4, cv = document.createElement("canvas");
+  cv.width = cw; cv.height = ch;
+  const g = cv.getContext("2d"); g.fillStyle = "#fff"; g.textBaseline = "middle";
+  g.font = `600 ${ch * .34}px "Instrument Sans", sans-serif`;
+  g.fillText("VER PROJETO  \u2197", ch * .06, ch * .52);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.NoColorSpace; t.anisotropy = 4;
+  return t;
+}
 
 // fixed: telões posicionados à mão [{ p: Vector3, W, H, rotY, project? }] (os projetos vão neles);
 // facades: as demais fachadas recebem telões automáticos (anúncios abstratos), marcadas com f.screen = true.
@@ -76,18 +86,21 @@ export async function createScreens({ facades, U, mobile, rnd, fixed = [], fill 
   }
   const infoAttr = new THREE.InstancedBufferAttribute(aInfo, 4); infoAttr.setUsage(THREE.DynamicDrawUsage);
   geo.setAttribute("aInfo", infoAttr); haloGeo.setAttribute("aInfo", infoAttr);
+  const aHover = new Float32Array(N), hoverAttr = new THREE.InstancedBufferAttribute(aHover, 1); hoverAttr.setUsage(THREE.DynamicDrawUsage);
+  geo.setAttribute("aHover", hoverAttr); haloGeo.setAttribute("aHover", hoverAttr);
 
   const S = {
     tVideo: { value: null }, tPoster: { value: null }, uHasVideo: { value: 0 }, uCellAspect: { value: MOSAIC.aspect },
-    tTitles: { value: await titleAtlas(mobile) }, uRows: { value: PROJECTS.length }, uDensity: { value: mobile ? 13 : 17 },
+    tTitles: { value: await titleAtlas(mobile) }, tCta: { value: ctaTexture(mobile) }, uRows: { value: PROJECTS.length }, uDensity: { value: mobile ? 13 : 17 },
   };
   const VS = /* glsl */`
-    attribute vec4 aRect, aInfo; attribute vec3 aColor; attribute vec2 aKind;
-    varying vec2 vUv, vSize, vKind; varying vec3 vW, vColor; varying vec4 vRect, vInfo; varying float vH;
+    attribute vec4 aRect, aInfo; attribute vec3 aColor; attribute vec2 aKind; attribute float aHover;
+    varying vec2 vUv, vSize, vKind; varying vec3 vW, vColor; varying vec4 vRect, vInfo; varying float vH, vHover;
     void main() {
-      vUv = uv; vRect = aRect; vInfo = aInfo; vColor = aColor; vKind = aKind;
+      vUv = uv; vRect = aRect; vInfo = aInfo; vColor = aColor; vKind = aKind; vHover = aHover;
       vSize = vec2(length(instanceMatrix[0].xyz), length(instanceMatrix[1].xyz));
-      vec4 ip = instanceMatrix * vec4(position, 1.); vH = ip.y;
+      float pop = aHover * aHover * (3. - 2. * aHover);   // em foco: cresce um pouco e avança da parede
+      vec4 ip = instanceMatrix * vec4(position * (1. + .045 * pop) + vec3(0., 0., .12 * pop), 1.); vH = ip.y;
       vec4 w = modelMatrix * ip; vW = w.xyz;
       gl_Position = projectionMatrix * viewMatrix * w;
     }`;
@@ -96,8 +109,8 @@ export async function createScreens({ facades, U, mobile, rnd, fixed = [], fill 
     uniforms: { ...S, uT: U.time, uHaze: U.haze, uFogD: U.fogD, tLight: U.light },
     vertexShader: VS,
     fragmentShader: /* glsl */`
-      uniform sampler2D tVideo, tPoster, tTitles; uniform float uT, uHasVideo, uCellAspect, uRows, uDensity;
-      varying vec2 vUv, vSize, vKind; varying vec3 vW, vColor; varying vec4 vRect, vInfo; varying float vH;
+      uniform sampler2D tVideo, tPoster, tTitles, tCta; uniform float uT, uHasVideo, uCellAspect, uRows, uDensity;
+      varying vec2 vUv, vSize, vKind; varying vec3 vW, vColor; varying vec4 vRect, vInfo; varying float vH, vHover;
       ${COMMON_GLSL}
       // clipes procedurais (substitutos do vídeo): 4 estilos, cada um com a cor do projeto
       vec3 clip(vec2 uv, float t, vec3 c, float s, float st) {
@@ -154,11 +167,13 @@ export async function createScreens({ facades, U, mobile, rnd, fixed = [], fill 
         vec3 sub = clamp(1.7 - abs(f.x * 3. - vec3(.5, 1.5, 2.5)) * 1.9, 0., 1.);
         float rowm = smoothstep(.0, .2, f.y) * smoothstep(1., .8, f.y);
         vec3 mask = mix(sub * rowm * 2.4, vec3(.8), smoothstep(.22, .6, fm));
+        float hv = vHover * vHover * (3. - 2. * vHover);
+        mask = mix(mask, vec3(1.), hv * .55);                // em foco: imagem mais limpa (menos "tela filmada")
         // moiré: arcos coloridos que aparecem quando a grade de LEDs bate com a grade do sensor (mais forte na faixa
         // em que um LED ocupa ~1 pixel); mudam com a distância, como na câmera de verdade
         float ma = length((uv - vec2(.25 + .2 * sin(vInfo.x), 1.6)) * vec2(A, 1.)) * (55. + 25. * fract(vInfo.x)) / (.6 + fm) + uT * .4;
         float mk = .08 + .3 * smoothstep(.12, .45, fm) * (1. - smoothstep(1., 3., fm));
-        c *= mask * (1. + mk * vec3(sin(ma), sin(ma + 2.09), sin(ma + 4.19)));
+        c *= mask * (1. + mk * (1. - hv) * vec3(sin(ma), sin(ma + 2.09), sin(ma + 4.19)));
         // obturador rolando: faixa escura com borda clara descendo pela tela
         float rb = fract(uv.y * .7 + uT * .21 + vInfo.x);
         c *= 1. - .32 * smoothstep(.0, .05, rb) * smoothstep(.3, .14, rb);
@@ -170,6 +185,23 @@ export async function createScreens({ facades, U, mobile, rnd, fixed = [], fill 
         // moldura escura do painel
         vec2 e = min(uv, 1. - uv) * vSize;
         c *= smoothstep(.03, .14, min(e.x, e.y));
+        c *= 1. + .35 * hv;
+        if (hv > .001) {
+          // moldura acesa com uma luz que corre pelo perímetro
+          float ed = min(e.x, e.y), line = smoothstep(.09, .0, abs(ed - .2));
+          vec2 cuv2 = uv - .5; float ang = atan(cuv2.y * vSize.y, cuv2.x * vSize.x) / 6.2832 + .5;
+          float run = pow(fract(ang - uT * .35), 6.) + pow(fract(ang - uT * .35 + .5), 6.);
+          vec3 lc = mix(vColor, vec3(1.), .55);
+          c += lc * line * (.6 + 2.4 * run) * hv;
+          // cantoneiras (estilo mira) entrando de fora para dentro
+          vec2 k = abs(uv - .5) * vSize - (vSize * .5 - .55 - .5 * (1. - hv));
+          float br = step(0., k.x) * step(0., k.y) * step(min(k.x, k.y), .07) * step(max(k.x, k.y), .8);
+          c += vec3(1.) * br * 2.2 * hv;
+          // chamada "VER PROJETO" no canto inferior direito, subindo
+          float hb = min(.16, .7 * vSize.x / 4. / vSize.y), wb = hb * vSize.y * 4. / vSize.x;
+          vec2 cu = (uv - vec2(.95 - wb, .93 - hb + .04 * (1. - hv))) / vec2(wb, hb);   // canto superior direito (o título fica embaixo)
+          if (cu.x > 0. && cu.x < 1. && cu.y > 0. && cu.y < 1.) c = mix(c, vec3(2.2), texture2D(tCta, cu).a * hv);
+        }
         vec3 fogged = cityFog(c, vW, vH);
         gl_FragColor = vec4(mix(c, fogged, .75), 1.);
       }`,
@@ -182,7 +214,7 @@ export async function createScreens({ facades, U, mobile, rnd, fixed = [], fill 
     vertexShader: VS,
     fragmentShader: /* glsl */`
       uniform float uT;
-      varying vec2 vUv, vSize, vKind; varying vec3 vW, vColor; varying vec4 vRect, vInfo; varying float vH;
+      varying vec2 vUv, vSize, vKind; varying vec3 vW, vColor; varying vec4 vRect, vInfo; varying float vH, vHover;
       ${COMMON_GLSL}
       void main() {
         vec2 p = abs(vUv - .5) * 2., inner = vec2(1. / 1.7);
@@ -190,7 +222,7 @@ export async function createScreens({ facades, U, mobile, rnd, fixed = [], fill 
         float g = pow(max(1. - d, 0.), 2.2) * (.75 + .25 * sin(uT * 1.7 + vInfo.x * 3.));
         float dist = length(vW - cameraPosition);
         g *= smoothstep(2., 8., dist) * exp(-dist * .01);
-        gl_FragColor = vec4(vColor * g * (.28 + .12 * vInfo.w), 1.);
+        gl_FragColor = vec4(vColor * g * (.28 + .12 * vInfo.w) * (1. + 1.8 * vHover), 1.);
       }`,
   });
 
@@ -212,6 +244,36 @@ export async function createScreens({ facades, U, mobile, rnd, fixed = [], fill 
   const acc = new Float32Array(N), order = items.map((_, i) => i), dist = new Float32Array(N), vis = new Uint8Array(N);
   let video = null, anyLive = false;
 
+  // ---- telões de projeto são botões: raio do ponteiro → foco (hover); clique/toque → abre o projeto
+  const ndc = new THREE.Vector2(9, 9), ray = new THREE.Raycaster(), hitP = new THREE.Vector3(), hitPlane = new THREE.Plane(), T3 = new THREE.Vector3();
+  const projIdx = items.map((it, i) => (it.project !== undefined ? i : -1)).filter((i) => i >= 0);
+  let hovered = -1, lastCam = null;
+  const setNdc = (e) => ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+  const pick = (cam) => {
+    if (!cam || ndc.x > 2) return -1;
+    ray.setFromCamera(ndc, cam);
+    let best = -1, bd = Infinity;
+    for (const i of projIdx) {
+      const it = items[i];
+      if (ray.ray.direction.dot(it.n) > -1e-3) continue;                    // só pela frente
+      hitPlane.setFromNormalAndCoplanarPoint(it.n, it.p);
+      if (!ray.ray.intersectPlane(hitPlane, hitP)) continue;
+      const d = hitP.distanceTo(cam.position); if (d > 140 || d > bd) continue;
+      hitP.sub(it.p); T3.set(Math.cos(it.rotY), 0, -Math.sin(it.rotY));
+      if (Math.abs(hitP.dot(T3)) < it.W * .52 && Math.abs(hitP.y) < it.H * .52) { best = i; bd = d; }
+    }
+    return best;
+  };
+  const open = (i) => {
+    const project = PROJECTS[items[i].project];
+    dispatchEvent(new CustomEvent("motion:project", { detail: { index: items[i].project, project } }));
+    if (project.url) window.open(project.url, "_blank", "noopener");
+  };
+  const onMove = (e) => setNdc(e);
+  const onClick = (e) => { setNdc(e); const i = pick(lastCam); if (i >= 0) open(i); };
+  addEventListener("pointermove", onMove, { passive: true });
+  addEventListener("click", onClick);
+
   return {
     group, items,
     // fontes de luz para o mapa de luz (água/fachadas)
@@ -232,6 +294,12 @@ export async function createScreens({ facades, U, mobile, rnd, fixed = [], fill 
         aInfo[o + 3] = isLive ? 1 : 0;
       }
       infoAttr.needsUpdate = true;
+      // foco: entra rápido, sai devagar; o cursor vira mãozinha sobre um projeto
+      lastCam = cam;
+      const h = pick(cam);
+      if (h !== hovered) { hovered = h; document.body.style.cursor = h >= 0 ? "pointer" : ""; }
+      for (const i of projIdx) aHover[i] += ((i === hovered ? 1 : 0) - aHover[i]) * Math.min(1, dt * (i === hovered ? 9 : 5));
+      hoverAttr.needsUpdate = true;
       if (video && (live > 0) !== anyLive) { anyLive = live > 0; anyLive ? video.play?.().catch(() => {}) : video.pause?.(); }
     },
     // recebe o vídeo mosaico (HTMLVideoElement ou THREE.Texture)
@@ -244,6 +312,10 @@ export async function createScreens({ facades, U, mobile, rnd, fixed = [], fill 
       setRects(cols, rows); geo.attributes.aRect.needsUpdate = haloGeo.attributes.aRect.needsUpdate = true;
     },
     setPoster(tex) { tex.colorSpace = THREE.SRGBColorSpace; S.tPoster.value = tex; },
-    dispose() { S.tTitles.value.dispose(); S.tVideo.value?.dispose(); },
+    get hovered() { return hovered >= 0 ? items[hovered].project : -1; },
+    dispose() {
+      S.tTitles.value.dispose(); S.tCta.value.dispose(); S.tVideo.value?.dispose();
+      removeEventListener("pointermove", onMove); removeEventListener("click", onClick); document.body.style.cursor = "";
+    },
   };
 }

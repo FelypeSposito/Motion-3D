@@ -26,6 +26,7 @@ const GEO = {
   bin: () => new THREE.CylinderGeometry(.32, .28, .95, 10).translate(0, .48, 0),
   newsbox: () => merged(part(new THREE.BoxGeometry(.5, .95, .45), 0, .48), part(new THREE.BoxGeometry(.52, .04, .47), 0, .97)),
   curb: () => new THREE.BoxGeometry(1, 1, 1).translate(0, .5, 0),
+  box: () => new THREE.BoxGeometry(1, 1, 1).translate(0, .5, 0),
   tank: () => merged(part(new THREE.BoxGeometry(3, .35, 3), 0, .18), part(new THREE.CylinderGeometry(1.45, 1.45, 2.5, 12), 0, 1.6),
     part(new THREE.ConeGeometry(1.6, 1, 12), 0, 3.35)),
   antenna: () => new THREE.CylinderGeometry(.05, .12, 1, 6).translate(0, .5, 0),
@@ -79,7 +80,41 @@ function bulbMaterial(U) {
   });
 }
 
-export function createStreet(U, mobile, roof) {
+// marquise de teatro: caixa escura com fileiras de lâmpadas que correm (frente) e grade de lâmpadas (embaixo)
+function marqueeMaterial(U) {
+  return new THREE.ShaderMaterial({
+    uniforms: { uT: U.time, uHaze: U.haze, uFogD: U.fogD, tLight: U.light },
+    vertexShader: /* glsl */`
+      attribute vec3 aTint; varying vec3 vW, vN, vL, vTint, vSc;
+      void main() {
+        vSc = vec3(length(instanceMatrix[0].xyz), length(instanceMatrix[1].xyz), length(instanceMatrix[2].xyz));
+        vec4 w = modelMatrix * instanceMatrix * vec4(position, 1.); vW = w.xyz; vN = normal; vL = position * vSc; vTint = aTint;
+        gl_Position = projectionMatrix * viewMatrix * w;
+      }`,
+    fragmentShader: /* glsl */`
+      uniform float uT; varying vec3 vW, vN, vL, vTint, vSc; ${COMMON_GLSL}
+      float dots(vec2 p, float r) { vec2 f = fract(p) - .5; return smoothstep(r, r * .4, length(f)); }
+      void main() {
+        vec3 col = vec3(.012, .01, .012) + neonLight(vW.xz) * .03;
+        float ph = hash12(vSc.xz);
+        if (vN.z > .5 || abs(vN.x) > .5) {                          // frente e laterais: 2 fileiras de lâmpadas que correm
+          float u = (vN.z > .5 ? vL.x : vL.z) / .32, row = vL.y / vSc.y + .5;
+          float rows = smoothstep(.1, .0, abs(row - .2)) + smoothstep(.1, .0, abs(row - .8));
+          float chase = step(.5, fract(floor(u) / 3. - uT * 2.2 + ph));
+          col += vTint * dots(vec2(u, 0.), .32) * rows * (.6 + 2.6 * chase);
+          // faixa central: letreiro claro (letras abstratas)
+          float band = step(.32, row) * step(row, .68);
+          float glyph = step(.55, hash12(floor(vec2((vL.x + vL.z) * 3.2, row * 6.)) + ph * 9.)) * band;
+          col = mix(col, vec3(1.2, 1.1, .95), glyph * .35 + band * .04);
+        } else if (vN.y < -.5) {                                     // embaixo: grade de lâmpadas quentes
+          col += vec3(1., .72, .4) * dots(vL.xz / .45, .25) * 1.6;
+        }
+        gl_FragColor = vec4(cityFog(col, vW, vW.y), 1.);
+      }`,
+  });
+}
+
+export function createStreet(U, mobile, roof, facades = []) {
   const group = new THREE.Group(), lights = [];
   const items = {};                                     // tipo → [{p, ry, s, tint}]
   const put = (kind, x, z, ry = 0, s = [1, 1, 1], tint = [1, 1, 1], y = 0) =>
@@ -120,6 +155,49 @@ export function createStreet(U, mobile, roof) {
   // frades na divisa praça/avenida
   for (let x = -6; x <= 6.01; x += 1.5) put("bollard", x, z0 - 1.2, 0, [1, 1, 1], [.8, .8, .85]);
 
+  // ---- fachadas: marquises de teatro, aparelhos de ar-condicionado nas janelas e andaimes de calçada
+  const marquees = [];
+  const nrm = (f) => new THREE.Vector3(Math.sin(f.rotY), 0, Math.cos(f.rotY));
+  const tan = (f) => new THREE.Vector3(Math.cos(f.rotY), 0, -Math.sin(f.rotY));
+  const open = facades.filter((f) => f.seed !== undefined && !f.tower);
+  let mq = 0, shed = 0;
+  for (const f of open) {
+    const n = nrm(f), t = tan(f), c = new THREE.Vector3(f.pos[0], 0, f.pos[2]);
+    const sr = (k) => (Math.sin(f.seed * 997 + k * 13.1) * 43758.5453) % 1;   // aleatório fixo por fachada
+    const r0 = Math.abs(sr(1)), r1 = Math.abs(sr(2));
+    // marquise sobre a entrada (no máximo 4, nas fachadas maiores)
+    if (mq < 4 && f.w > 9 && r0 < .5) {
+      const w = Math.min(f.w - 2, 6 + r1 * 4), p = c.clone().addScaledVector(n, .75).addScaledVector(t, (r1 - .5) * (f.w - w) * .6);
+      marquees.push({ p: p.setY(4.55), ry: f.rotY, s: [w, .8, 1.5], tint: [[4, 2.8, 1.4], [3, 1.2, 3.4], [1.4, 3, 4]][mq % 3] });
+      lights.push({ x: p.x + n.x * 1.2, z: p.z + n.z * 1.2, c: new THREE.Color(1, .75, .45), i: .8 });
+      mq++;
+    }
+    // andaime de calçada (o "sidewalk shed" de Nova York) em duas fachadas da avenida
+    else if (shed < 2 && f.pos[2] < PLAZA.z0 - 20 && r0 > .7) {
+      const len = Math.min(f.w - 1, 12), cc = c.clone().addScaledVector(n, 1.3);
+      put("box", cc.x, cc.z, f.rotY, [len, .25, 2.6], [.35, .55, .4], 3.3);                       // teto verde
+      put("box", cc.x + n.x * 1.25, cc.z + n.z * 1.25, f.rotY, [len, .9, .06], [.5, .45, .35], 3.55);  // tapume
+      for (let k = -len / 2; k <= len / 2 + .01; k += 2.4)
+        for (const o of [-1.2, 1.2]) { const q = cc.clone().addScaledVector(t, k).addScaledVector(n, o); put("box", q.x, q.z, f.rotY, [.12, 3.3, .12], [.4, .5, .42]); }
+      shed++;
+    }
+    // ar-condicionado em ~1/6 das janelas de alvenaria (grade 1,9 × 3,3 m do shader das fachadas)
+    if ((f.seed * 7.31) % 1 >= .33) {
+      const ax = Math.abs(n.x) > .5 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(1, 0, 0);   // eixo da grade do shader
+      const lt = c.clone().sub(new THREE.Vector3(f.cx, 0, f.cz)).dot(ax);   // centro da face em coordenada local do prédio
+      const i0 = Math.ceil((lt - f.w / 2 + .5) / 1.9), i1 = Math.floor((lt + f.w / 2 - 1.4) / 1.9);
+      const j1 = Math.min(Math.floor((f.h - 4) / 3.3), mobile ? 7 : 11);
+      for (let j = 2; j <= j1; j++) {
+        if (j % 5 === 4) continue;                                          // faixa de pedra
+        for (let i = i0; i <= i1; i++) {
+          if (((i % 4) + 4) % 4 === 0 || Math.abs(Math.sin(i * 12.9898 + j * 78.233 + f.seed * 311) * 43758.5453) % 1 > .16) continue;
+          const along = (i + .5) * 1.9 - lt, q = c.clone().addScaledVector(ax, along).addScaledVector(n, .22);
+          put("box", q.x, q.z, f.rotY, [.72, .46, .5], [.55, .55, .58], j * 3.3 + .78);
+        }
+      }
+    }
+  }
+
   // telhados: caixas d'água e antenas (com luz vermelha no topo)
   for (const r of roof) {
     if (r.kind === "tank") put("tank", r.x, r.z, r.x * .37, [r.s, r.s, r.s], [.7, .55, .45], r.y);
@@ -139,6 +217,12 @@ export function createStreet(U, mobile, roof) {
     geo.setAttribute("aTint", new THREE.InstancedBufferAttribute(tint, 3));
     mesh.computeBoundingSphere(); group.add(mesh);
   }
+  if (marquees.length) {
+    const mgeo = new THREE.BoxGeometry(1, 1, 1), mm = new THREE.InstancedMesh(mgeo, marqueeMaterial(U), marquees.length), mt = new Float32Array(marquees.length * 3);
+    marquees.forEach((it, i) => { q.setFromAxisAngle(up, it.ry); sc.set(...it.s); m.compose(it.p, q, sc); mm.setMatrixAt(i, m); mt.set(it.tint, i * 3); });
+    mgeo.setAttribute("aTint", new THREE.InstancedBufferAttribute(mt, 3));
+    mm.computeBoundingSphere(); group.add(mm);
+  }
   const bgeo = new THREE.SphereGeometry(1, 10, 6), bmesh = new THREE.InstancedMesh(bgeo, bulbMaterial(U), bulbs.length);
   const bcol = new Float32Array(bulbs.length * 3), bmode = new Float32Array(bulbs.length);
   bulbs.forEach((b, i) => { m.compose(b.p, q.identity(), sc.setScalar(b.r)); bmesh.setMatrixAt(i, m); bcol.set(b.col, i * 3); bmode[i] = b.mode; });
@@ -153,8 +237,6 @@ export function createStreet(U, mobile, roof) {
     vertexShader: `varying vec2 vUv; varying vec3 vW; void main(){ vUv = uv; vec4 w = modelMatrix * vec4(position, 1.); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
     fragmentShader: /* glsl */`
       uniform float uT; varying vec2 vUv; varying vec3 vW; ${COMMON_GLSL}
-      float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f);
-        return mix(mix(hash12(i), hash12(i + vec2(1, 0)), f.x), mix(hash12(i + vec2(0, 1)), hash12(i + vec2(1, 1)), f.x), f.y); }
       void main() {
         vec2 p = vec2((vUv.x - .5) * 2.2, vUv.y * 5.);
         float w = .18 + vUv.y * .85;                                     // a pluma abre ao subir

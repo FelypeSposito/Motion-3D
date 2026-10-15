@@ -109,11 +109,41 @@ export function createBuildings(blocks, U, mobile) {
             float r = hash12(id + vSeed * 91.7);
             float lit = step(.76, r) * step(1.5, vR.y);
             vec3 wc = mix(vec3(1., .6, .3), vec3(.55, .75, 1.), step(.78, fract(r * 13.))) * (.15 + fract(r * 31.) * .75);
-            vec3 facade = vec3(.016, .016, .022) * (.7 + .6 * hash12(vec2(id.x, vSeed)));
-            facade += max(pier, band) * (vec3(.005, .0045, .005) + L * .015 * lift);     // pilastras e faixas salientes pegam luz
-            vec3 detail = facade + win * (lit * wc * 1.3 + (1. - lit) * vec3(.008, .01, .016));
-            vec3 avg = facade + vec3(.9, .7, .55) * .018;
-            col = mix(detail, avg, smoothstep(.35, .9, max(fw.x, fw.y)));
+            // material do prédio: tijolo, pedra calcária, concreto ou granito (cada um com sua textura)
+            float ps = fract(vSeed * 3.17), far = smoothstep(.35, .9, max(fw.x, fw.y));
+            vec3 base; float tex = 1.;
+            if (ps < .3) {                                                   // tijolo: fiadas desencontradas, argamassa clara
+              base = vec3(.034, .017, .012);
+              vec2 b = fc / vec2(.23, .075); b.x += step(1., mod(floor(b.y), 2.)) * .5;
+              vec2 bf = fract(b), bw = fwidth(b);
+              float mortar = 1. - smoothstep(.0, .08 + bw.x, bf.x) * smoothstep(1., .92 - bw.x, bf.x) * smoothstep(.0, .14 + bw.y, bf.y) * smoothstep(1., .86 - bw.y, bf.y);
+              tex = mix((.8 + .4 * hash12(floor(b))) * (1. - mortar * .35) + mortar * .3, 1., smoothstep(.3, 1., max(bw.x, bw.y)));
+            } else if (ps < .55) {                                           // pedra calcária: blocos grandes, juntas finas
+              base = vec3(.032, .029, .023);
+              vec2 b = fc / vec2(1.1, .55); b.x += step(1., mod(floor(b.y), 2.)) * .5;
+              vec2 bf = fract(b), bw = fwidth(b);
+              float joint = 1. - smoothstep(.0, .025 + bw.x, bf.x) * smoothstep(.0, .05 + bw.y, bf.y);
+              tex = mix((.88 + .24 * hash12(floor(b))) * (1. - joint * .4), 1., smoothstep(.3, 1., max(bw.x, bw.y)));
+            } else if (ps < .8) {                                            // concreto: manchas de forma
+              base = vec3(.022, .022, .024);
+              tex = .8 + .4 * vn(fc * vec2(.6, 1.2) + vSeed * 40.);
+            } else base = vec3(.013, .013, .016);                           // granito escuro
+            // sujeira escorrendo das janelas e da cornija (listras verticais) e fuligem no térreo
+            float streak = vn(vec2(fc.x * 2.6 + vSeed * 17., fc.y * .12)) * .65 + vn(vec2(fc.x * 9., fc.y * .3)) * .35;
+            float grime = mix(1., .62 + .5 * streak, 1. - far * .6) * (.75 + .25 * smoothstep(0., 9., vR.y));
+            vec3 facade = base * tex * grime * (.75 + .5 * hash12(vec2(id.x, vSeed)));
+            facade += max(pier, band) * (base * .5 + L * .015 * lift);       // pilastras e faixas salientes pegam luz
+            // janela com profundidade: sombra no alto do vão, peitoril claro embaixo
+            float sill = smoothstep(.3, .26, f.y) * smoothstep(.2, .26, f.y) * step(.24, f.x) * step(f.x, .76) * (1. - pier) * (1. - band);
+            float inner = smoothstep(.78, .62, f.y);                          // fundo do vão: escuro em cima
+            // acesas: cortina/persiana cobrindo parte de cima, interior mais quente embaixo
+            float cover = hash12(id * 1.7 + vSeed);
+            float blind = step(1. - cover * .7, (f.y - .3) / .48) * (.25 + .2 * step(.5, fract(f.y * 26.)));
+            vec3 lw = wc * (1. - blind * .8) * (.8 + .4 * smoothstep(.78, .3, f.y));
+            vec3 dark = vec3(.008, .01, .016) * (.6 + .4 * inner) + L * .01;
+            vec3 detail = mix(facade + sill * (base * 1.5 + L * .04 * lift), lit * lw * 1.3 + (1. - lit) * dark, win);
+            vec3 avg = base * grime + vec3(.9, .7, .55) * .018;
+            col = mix(detail, avg, far);
           }
           // térreo dos prédios da frente: vitrines de loja acesas (vãos de 3 m), travessa e faixa escura do letreiro
           if (vKind < .5 && vR.y > 0. && vR.y < 5.4) {
@@ -202,10 +232,10 @@ export function layoutPlaza(rnd) {
       const [dir, a, b] = f;
       if (dir === "+x" || dir === "-x") {
         const s = dir === "+x" ? 1 : -1, z0 = a ?? z - sz / 2, z1 = b ?? z + sz / 2;
-        facades.push({ pos: [x + s * sx / 2, h / 2, (z0 + z1) / 2], rotY: s * Math.PI / 2, w: z1 - z0, h });
+        facades.push({ pos: [x + s * sx / 2, h / 2, (z0 + z1) / 2], rotY: s * Math.PI / 2, w: z1 - z0, h, seed, cx: x, cz: z });
       } else {
         const x0 = a ?? x - sx / 2, x1 = b ?? x + sx / 2;
-        facades.push({ pos: [(x0 + x1) / 2, h / 2, z + sz / 2], rotY: 0, w: x1 - x0, h });
+        facades.push({ pos: [(x0 + x1) / 2, h / 2, z + sz / 2], rotY: 0, w: x1 - x0, h, seed, cx: x, cz: z });
       }
     }
   };

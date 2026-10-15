@@ -11,8 +11,6 @@ import { ROAD_HW, CROSS, STEAM } from "./props.js";
 const f1 = (v) => (+v).toFixed(2);
 // detalhes do chão: asfalto da avenida com pintura gasta, faixa de pedestres, bueiros e ralos, manchas de poça
 const GROUND_GLSL = /* glsl */`
-  float vn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f);
-    return mix(mix(hash12(i), hash12(i + vec2(1, 0)), f.x), mix(hash12(i + vec2(0, 1)), hash12(i + vec2(1, 1)), f.x), f.y); }
   // tampa de bueiro: disco de ferro com aro e grade em losango
   float manhole(vec2 p, vec2 c, out float ring) {
     float d = length(p - c); ring = smoothstep(.04, 0., abs(d - .46));

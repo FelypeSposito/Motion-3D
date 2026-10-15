@@ -10,6 +10,7 @@ import { layoutPlaza, plazaHeroScreens, createBuildings, bakeLightMap, rng } fro
 import { createScreens } from "./screens.js";
 import { createGround } from "./water.js";
 import { createStreet } from "./props.js";
+import { createFog } from "./fog.js";
 import { COMMON_GLSL } from "./glsl.js";
 
 // letreiros neon da praça: módulo de outro agente (src/chapters/02-cidade/neon/). Se não existir, segue sem.
@@ -61,7 +62,7 @@ export async function create(ctx) {
   }
 
   // mobiliário, meio-fio e telhados (os postes iluminam o chão pelo mapa de luz)
-  const street = createStreet(U, mobile, roof);
+  const street = createStreet(U, mobile, roof, facades);
 
   // mapa de luz: telões + neons (se houver) + postes, calculado uma vez
   const sources = [...screens.lights, ...street.lights];
@@ -98,7 +99,8 @@ export async function create(ctx) {
   mirror.add(buildings, screens.group, sky, statue, street.group);
   if (neon) mirror.add(neon.group);
   const { ground, specks } = createGround(U, mobile, PUDDLE);
-  scene.add(mirror, ground, specks);
+  const fog = createFog(U, mobile);
+  scene.add(mirror, ground, specks, fog.group);
 
   // ---- câmera
   // emersão: do fundo turvo, sobe pela poça olhando para cima e recua rente ao chão até o primeiro plano
@@ -165,6 +167,7 @@ export async function create(ctx) {
     specks.position.y = Math.sin(t * 0.2) * 0.1;
     screens.update(camera, dt);
     street.update(camera);
+    fog.update(t, camera);
     neon?.update(t, dt, { progress: prog, camera });
     underAmt = THREE.MathUtils.smoothstep(-y, 0, 0.6);
   }
@@ -181,10 +184,10 @@ export async function create(ctx) {
     if (cam === camera && split.on) cam = camAbove;
     const under = cam.position.y < 0, rt = cam === camUnder ? rtUnder : rtMain;
     mirror.scale.y = under ? 1 : -1;
-    ground.visible = specks.visible = false;
+    ground.visible = specks.visible = fog.group.visible = false;   // névoa fora do reflexo
     r.setRenderTarget(rtRefl); r.setClearColor(0x000000, 1); r.clear(); r.render(scene, cam);
     mirror.scale.y = 1;
-    ground.visible = true; specks.visible = under;
+    ground.visible = true; specks.visible = under; fog.group.visible = !under;
     U.screen.value.set(rt.width, rt.height);
     r.setRenderTarget(rt); r.setClearColor(under ? 0x030b0a : 0x050310, 1); r.clear(); r.render(scene, cam);
     return rt.texture;
