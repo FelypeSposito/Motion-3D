@@ -24,6 +24,7 @@
 - **Capítulo 02 — cidade dos letreiros** (ligado direto no roteiro desde 15/out, aprovado pelo usuário): `src/chapters/02-cidade/` (city, screens = telões com efeito
   "tela filmada por celular" e mosaico de vídeo, water, glsl, projects) + `neon/` (letreiros neon com cascata,
   subida, flicker; página de teste `neon-test.html`). O usuário GOSTOU da cidade.
+- **v15 (cidade)**: `src/chapters/02-cidade/props.js` (mobiliário e telhados, instanciados) + recuos/cornijas e fachadas novas em `city.js` + detalhes do chão em `water.js`.
 - Deploy: `.github/workflows/pages.yml` compila e publica no Pages (Settings → Pages → Source = GitHub Actions).
 
 **Pendente (em ordem)**

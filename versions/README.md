@@ -16,3 +16,4 @@ abra `http://localhost:5173/versions/<pasta>/` para ver a versão.
 | `v12-mobile-2x` | celular renderiza em 2x (piso 1,25x, teto 2,2x) — menos serrilhado |
 | `v13-cache-de-cena` | texturas, terreno, pedras e relevo pré-gerados (?bake) em WebP/binário compactado; cada aparelho baixa só o seu; pronto em ~0,6 s (celular) e ~1,2 s (computador) na versão de produção |
 | `v14-luz-assada-e-cidade` | luz assada no Blender nas peças fixas (dia/noite 4K), sorteio com semente, celular mais nítido e sem trancos, água/chão/tronco melhores no celular, transição pela água turva, capítulo 02 cidade + neon (`?cap2`), deploy via GitHub Actions |
+| `v15-cidade-detalhes` | cidade: prédios com recuos e cornijas, fachadas de alvenaria (pilastras/faixas) ou vidro, vitrines no térreo, caixas d'água e antenas piscando; chão com asfalto pintado, faixa de pedestres, bueiros, ralos e manchas de poça; floreiras, bancos, frades, postes, semáforos, lixeiras, bancas e vapor de bueiro |

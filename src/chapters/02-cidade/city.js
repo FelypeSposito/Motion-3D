@@ -50,51 +50,87 @@ export function layoutCity(rnd) {
 
 export const SUB = 7;                                    // os prédios descem até 7 m abaixo d'água
 
+// Peças de prédio (UMA chamada de desenho para tudo). aKind: 0 = corpo da frente (com vitrines no térreo),
+// 1 = cornija/laje (pedra lisa), 2 = recuo do topo (janelas, sem térreo), 3 = corpo de fundo (sem vitrines).
+// Bloco sem y0 é o corpo principal e desce até SUB abaixo do chão; com y0, começa nessa altura.
 export function createBuildings(blocks, U, mobile) {
   const geo = new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0);
-  const seeds = new Float32Array(blocks.length);
+  const seeds = new Float32Array(blocks.length), kinds = new Float32Array(blocks.length);
   const mat = new THREE.ShaderMaterial({
     uniforms: { uT: U.time, uClip: U.clip, uHaze: U.haze, uFogD: U.fogD, tLight: U.light },
     vertexShader: /* glsl */`
-      attribute float aSeed;
-      varying vec3 vW, vR, vN, vL; varying float vSeed; varying vec3 vSc;
+      attribute float aSeed, aKind;
+      varying vec3 vW, vR, vN, vL; varying float vSeed, vKind; varying vec3 vSc;
       void main() {
         vSc = vec3(length(instanceMatrix[0].xyz), length(instanceMatrix[1].xyz), length(instanceMatrix[2].xyz));
         vec4 ip = instanceMatrix * vec4(position, 1.);
         vR = ip.xyz;                                  // posição real (antes do espelho do reflexo)
-        vL = position * vSc; vN = normal; vSeed = aSeed;
+        vL = position * vSc; vN = normal; vSeed = aSeed; vKind = aKind;
         vec4 w = modelMatrix * ip; vW = w.xyz;
         gl_Position = projectionMatrix * viewMatrix * w;
       }`,
     fragmentShader: /* glsl */`
       uniform float uT, uClip;
-      varying vec3 vW, vR, vN, vL; varying float vSeed; varying vec3 vSc;
+      varying vec3 vW, vR, vN, vL; varying float vSeed, vKind; varying vec3 vSc;
       ${COMMON_GLSL}
       void main() {
-        if (uClip > .5 && vR.y < 0.) discard;          // reflexo/refração: só a parte acima d'água
+        if (uClip > .5 && vR.y < 0.) discard;          // reflexo/refração: só a parte acima do chão
         vec3 n = abs(vN);
+        vec3 L = neonLight(vR.xz);
+        float lift = smoothstep(-1., 4., vR.y) * (1. - smoothstep(18., 48., vR.y));   // luz dos letreiros: forte embaixo, some no alto
         vec3 col;
-        if (n.y > .5) col = vec3(.008, .008, .012);    // telhado
+        if (vKind > .5 && vKind < 1.5) {
+          // cornija / laje: pedra mais clara; a borda pega a luz dos letreiros
+          col = vec3(.034, .031, .034) * (n.y > .5 ? .55 : 1.) + L * (.07 * lift + .012);
+        } else if (n.y > .5) col = vec3(.008, .008, .012) + L * .004;    // telhado
         else {
-          // janelas: grade em metros na face; acesas ao acaso (quente/fria); longe vira a média (sem cintilar)
-          vec2 fc = n.x > .5 ? vec2(vL.z, vL.y) : vec2(vL.x, vL.y);
-          vec2 g = fc / vec2(1.9, 3.3), id = floor(g), f = fract(g);
-          vec2 fw = fwidth(g);
-          float win = smoothstep(.24, .24 + fw.x, f.x) * smoothstep(.76, .76 - fw.x, f.x) * smoothstep(.3, .3 + fw.y, f.y) * smoothstep(.78, .78 - fw.y, f.y);
-          float r = hash12(id + vSeed * 91.7);
-          float lit = step(.76, r) * step(0., vR.y - 1.5);
-          vec3 wc = mix(vec3(1., .6, .3), vec3(.55, .75, 1.), step(.78, fract(r * 13.))) * (.15 + fract(r * 31.) * .75);
-          vec3 facade = vec3(.016, .016, .022) * (.7 + .6 * hash12(vec2(id.x, vSeed)));
-          vec3 detail = facade + win * (lit * wc * 1.3 + (1. - lit) * vec3(.008, .01, .016));
-          vec3 avg = facade + vec3(.9, .7, .55) * .022;
-          col = mix(detail, avg, smoothstep(.35, .9, max(fw.x, fw.y)));
+          vec3 V = normalize(cameraPosition - vW);
+          vec2 fc = vec2(n.x > .5 ? vL.z : vL.x, vR.y);                    // andares alinhados entre corpo e recuos
+          vec2 fw0 = fwidth(fc);
+          if (fract(vSeed * 7.31) < .33) {
+            // cortina de vidro: montantes finos, reflete o céu/névoa e os letreiros; andares de escritório acesos
+            vec2 g = fc / vec2(1.5, 3.3), id = floor(g), f = fract(g), fw = fwidth(g);
+            float pane = smoothstep(.0, .06 + fw.x, f.x) * smoothstep(1., .94 - fw.x, f.x) * smoothstep(.0, .1 + fw.y, f.y) * smoothstep(1., .9 - fw.y, f.y);
+            float fres = .1 + .9 * pow(1. - abs(dot(vN, V)), 4.);
+            vec3 sky = mix(uHaze * .9, vec3(.003, .003, .008), clamp(vR.y / 90., 0., 1.));
+            float floorLit = step(.58, hash12(vec2(id.y, vSeed * 13.)));
+            float h = hash12(id + vSeed * 5.);
+            vec3 office = vec3(.32, .42, .58) * (.05 + .16 * h) * step(.45, h) * floorLit * step(1.5, vR.y);
+            vec3 glass = sky * fres + L * (.025 + .09 * fres) * (.4 + .6 * lift) + office;
+            vec3 detail = mix(vec3(.009, .009, .012), glass, pane);
+            vec3 avg = sky * fres * .8 + L * .05 * lift + floorLit * vec3(.32, .42, .58) * .05;
+            col = mix(detail, avg, smoothstep(.35, .9, max(fw.x, fw.y)));
+          } else {
+            // alvenaria: janelas recortadas, pilastra a cada 4 vãos e faixa de pedra a cada 5 andares
+            vec2 g = fc / vec2(1.9, 3.3), id = floor(g), f = fract(g), fw = fwidth(g);
+            float win = smoothstep(.24, .24 + fw.x, f.x) * smoothstep(.76, .76 - fw.x, f.x) * smoothstep(.3, .3 + fw.y, f.y) * smoothstep(.78, .78 - fw.y, f.y);
+            float pier = 1. - step(.5, mod(id.x, 4.)), band = step(3.5, mod(id.y, 5.));
+            win *= (1. - pier) * (1. - band);
+            float r = hash12(id + vSeed * 91.7);
+            float lit = step(.76, r) * step(1.5, vR.y);
+            vec3 wc = mix(vec3(1., .6, .3), vec3(.55, .75, 1.), step(.78, fract(r * 13.))) * (.15 + fract(r * 31.) * .75);
+            vec3 facade = vec3(.016, .016, .022) * (.7 + .6 * hash12(vec2(id.x, vSeed)));
+            facade += max(pier, band) * (vec3(.005, .0045, .005) + L * .015 * lift);     // pilastras e faixas salientes pegam luz
+            vec3 detail = facade + win * (lit * wc * 1.3 + (1. - lit) * vec3(.008, .01, .016));
+            vec3 avg = facade + vec3(.9, .7, .55) * .018;
+            col = mix(detail, avg, smoothstep(.35, .9, max(fw.x, fw.y)));
+          }
+          // térreo dos prédios da frente: vitrines de loja acesas (vãos de 3 m), travessa e faixa escura do letreiro
+          if (vKind < .5 && vR.y > 0. && vR.y < 5.4) {
+            float bx = fc.x / 3., fb = fract(bx), fwb = fw0.x / 3.;
+            float frame = smoothstep(.0, .035 + fwb, fb) * smoothstep(1., .965 - fwb, fb);
+            float hb = hash12(vec2(floor(bx), vSeed * 3.));
+            vec3 shop = mix(vec3(1., .62, .32), vec3(.6, .78, 1.), step(.72, hb)) * (.008 + .07 * hb) * step(.42, hb);
+            shop *= (.5 + .5 * smoothstep(0., 3., vR.y)) * (.75 + .25 * sin(fb * 6.283 * 2. + hb * 9.));   // interior irregular
+            float transom = step(3., vR.y) * step(vR.y, 3.22);
+            col = vR.y < 4.4 ? shop * frame * (1. - transom) + vec3(.006, .006, .008) * (1. - frame)
+                             : vec3(.007, .006, .009) + L * .06;
+          }
           // quinas mais escuras (oclusão barata)
           float ex = (.5 - abs(n.x > .5 ? vL.z / vSc.z : vL.x / vSc.x)) * (n.x > .5 ? vSc.z : vSc.x);
           col *= .55 + .45 * smoothstep(0., 1.2, ex);
-          // luz dos letreiros lavando a fachada (mais forte na altura dos telões, some no alto)
-          vec3 L = neonLight(vR.xz);
-          col += L * .045 * smoothstep(-1., 4., vR.y) * (1. - smoothstep(18., 48., vR.y));
-          // parte submersa: lodo escuro
+          col += L * .045 * lift;
+          // parte enterrada (vista de dentro da poça): lodo escuro
           if (vR.y < 0.) col = mix(vec3(.01, .03, .028), col * .3, exp(vR.y * .8)) + L * .01;
         }
         gl_FragColor = vec4(cityFog(col, vW, vR.y), 1.);
@@ -103,10 +139,13 @@ export function createBuildings(blocks, U, mobile) {
   const mesh = new THREE.InstancedMesh(geo, mat, blocks.length);
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
   blocks.forEach((b, i) => {
-    q.setFromAxisAngle(up, b.ry); s.set(b.d, b.h + SUB, b.w);
-    m.compose(new THREE.Vector3(b.c.x, -SUB, b.c.z), q, s); mesh.setMatrixAt(i, m); seeds[i] = b.seed;
+    const base = b.y0 == null;
+    q.setFromAxisAngle(up, b.ry); s.set(b.d, base ? b.h + SUB : b.h, b.w);
+    m.compose(new THREE.Vector3(b.c.x, base ? -SUB : b.y0, b.c.z), q, s); mesh.setMatrixAt(i, m);
+    seeds[i] = b.seed; kinds[i] = b.kind ?? (b.row ? 3 : 0);
   });
   geo.setAttribute("aSeed", new THREE.InstancedBufferAttribute(seeds, 1));
+  geo.setAttribute("aKind", new THREE.InstancedBufferAttribute(kinds, 1));
   mesh.computeBoundingSphere();
   return mesh;
 }
@@ -135,10 +174,30 @@ export function bakeLightMap(sources, mobile) {
 export const PLAZA = { hw: 18, z0: -8, z1: 34, ahw: 9, tower: { x: 0, z: -96, sx: 14, sz: 12, h: 92 } };
 
 export function layoutPlaza(rnd) {
-  const blocks = [], facades = [];
+  const blocks = [], facades = [], roof = [];
+  // topo de prédio de Nova York: cornija saliente, 0–2 recuos (cada um com sua cornija) e, no telhado,
+  // caixa d'água e/ou antena (com luz vermelha). Os recuos usam a semente do corpo (mesmo estilo de fachada).
+  const crown = (x, z, sx, sz, h, seed) => {
+    const slab = (w, d, y) => blocks.push({ c: new THREE.Vector3(x, 0, z), d: w, w: d, h: .7, y0: y - .7, ry: 0, kind: 1, seed });
+    slab(sx + .7, sz + .7, h);
+    let cx = sx, cz = sz, y = h;
+    const tiers = rnd() < .65 ? (rnd() < .4 ? 2 : 1) : 0;
+    for (let t = 0; t < tiers; t++) {
+      const ins = 1.4 + rnd() * 2.4;
+      if (cx - 2 * ins < 4 || cz - 2 * ins < 4) break;
+      cx -= 2 * ins; cz -= 2 * ins;
+      const th = 5 + rnd() * 13;
+      blocks.push({ c: new THREE.Vector3(x, 0, z), d: cx, w: cz, h: th, y0: y, ry: 0, kind: 2, seed });
+      y += th; slab(cx + .5, cz + .5, y);
+    }
+    if (rnd() < .55) roof.push({ kind: "tank", x: x + (rnd() - .5) * cx * .5, z: z + (rnd() - .5) * cz * .5, y, s: .8 + rnd() * .5 });
+    if (rnd() < .35) roof.push({ kind: "antenna", x: x + (rnd() - .5) * cx * .4, z: z + (rnd() - .5) * cz * .4, y, h: 5 + rnd() * 12 });
+  };
   // caixa alinhada: centro (x, z), tamanho (sx, sz), altura h
   const box = (x, z, sx, sz, h, faces = [], row = 0) => {
-    blocks.push({ c: new THREE.Vector3(x, 0, z), d: sx, w: sz, h, ry: 0, row, seed: rnd() });
+    const seed = rnd();
+    blocks.push({ c: new THREE.Vector3(x, 0, z), d: sx, w: sz, h, ry: 0, row, seed });
+    crown(x, z, sx, sz, h, seed);
     for (const f of faces) {                         // '+x' | '-x' | '+z' com faixa visível opcional [a, b]
       const [dir, a, b] = f;
       if (dir === "+x" || dir === "-x") {
@@ -170,7 +229,7 @@ export function layoutPlaza(rnd) {
   box(T.x, T.z, T.sx, T.sz, T.h, [["+z"]]); facades.at(-1).noAuto = facades.at(-1).tower = true;
   for (let i = -3; i <= 3; i++) if (i) box(i * 13, -140, 12, 16, 40 + rnd() * 50, [], 1);
   for (let i = -2; i <= 2; i++) box(i * 15, z1 + 9, 14, 16, 30 + rnd() * 30, [], 1);
-  return { blocks, facades };
+  return { blocks, facades, roof };
 }
 
 // telões dos projetos (posições à mão, pensadas para os enquadramentos)

@@ -9,6 +9,7 @@ import { cameraPath, gradientSky, smoothPointer } from "../../core/scene-kit.js"
 import { layoutPlaza, plazaHeroScreens, createBuildings, bakeLightMap, rng } from "./city.js";
 import { createScreens } from "./screens.js";
 import { createGround } from "./water.js";
+import { createStreet } from "./props.js";
 import { COMMON_GLSL } from "./glsl.js";
 
 // letreiros neon da praça: módulo de outro agente (src/chapters/02-cidade/neon/). Se não existir, segue sem.
@@ -39,7 +40,7 @@ export async function create(ctx) {
   };
 
   const rnd = rng(20261014);
-  const { blocks, facades } = layoutPlaza(rnd);
+  const { blocks, facades, roof } = layoutPlaza(rnd);
   const heroes = plazaHeroScreens();
   // fachadas com telão de projeto não recebem telão automático nem neon
   for (const f of facades) for (const h of heroes) {
@@ -59,8 +60,11 @@ export async function create(ctx) {
     } catch (e) { console.warn("[cidade] neon indisponível:", e); neon = null; }
   }
 
-  // mapa de luz: telões + neons (se houver), calculado uma vez
-  const sources = [...screens.lights];
+  // mobiliário, meio-fio e telhados (os postes iluminam o chão pelo mapa de luz)
+  const street = createStreet(U, mobile, roof);
+
+  // mapa de luz: telões + neons (se houver) + postes, calculado uma vez
+  const sources = [...screens.lights, ...street.lights];
   for (const l of neon?.lights ?? []) {               // pos pode vir como Vector3 ou [x,y,z]; intensidade de repouso = base
     const x = l.pos.isVector3 ? l.pos.x : l.pos[0], z = l.pos.isVector3 ? l.pos.z : l.pos[2];
     sources.push({ x, z, c: new THREE.Color(l.color), i: (l.base ?? l.intensity ?? 1) * 0.12 });   // o neon já traz a própria luz na parede
@@ -91,7 +95,7 @@ export async function create(ctx) {
 
   // "refletíveis": tudo o que aparece no reflexo do chão/poça (o grupo é espelhado em y no passe do reflexo)
   const mirror = new THREE.Group();
-  mirror.add(buildings, screens.group, sky, statue);
+  mirror.add(buildings, screens.group, sky, statue, street.group);
   if (neon) mirror.add(neon.group);
   const { ground, specks } = createGround(U, mobile, PUDDLE);
   scene.add(mirror, ground, specks);
@@ -160,6 +164,7 @@ export async function create(ctx) {
     sky.position.copy(camera.position);
     specks.position.y = Math.sin(t * 0.2) * 0.1;
     screens.update(camera, dt);
+    street.update(camera);
     neon?.update(t, dt, { progress: prog, camera });
     underAmt = THREE.MathUtils.smoothstep(-y, 0, 0.6);
   }

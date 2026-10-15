@@ -5,6 +5,22 @@
 // fora da poça o chão é só água turva (continuidade com o lago do capítulo 01).
 import * as THREE from "three";
 import { COMMON_GLSL } from "./glsl.js";
+import { PLAZA } from "./city.js";
+import { ROAD_HW, CROSS, STEAM } from "./props.js";
+
+const f1 = (v) => (+v).toFixed(2);
+// detalhes do chão: asfalto da avenida com pintura gasta, faixa de pedestres, bueiros e ralos, manchas de poça
+const GROUND_GLSL = /* glsl */`
+  float vn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f);
+    return mix(mix(hash12(i), hash12(i + vec2(1, 0)), f.x), mix(hash12(i + vec2(0, 1)), hash12(i + vec2(1, 1)), f.x), f.y); }
+  // tampa de bueiro: disco de ferro com aro e grade em losango
+  float manhole(vec2 p, vec2 c, out float ring) {
+    float d = length(p - c); ring = smoothstep(.04, 0., abs(d - .46));
+    return smoothstep(.5, .47, d);
+  }
+  const float RW = ${f1(ROAD_HW)}, Z0 = ${f1(PLAZA.z0)}, CZ0 = ${f1(CROSS[0])}, CZ1 = ${f1(CROSS[1])};
+  const vec2 STEAMC = vec2(${f1(STEAM[0])}, ${f1(STEAM[1])});
+`;
 
 export function createGround(U, mobile, puddle) {
   U.puddle = { value: new THREE.Vector3(puddle.x, puddle.z, puddle.r) };
@@ -16,6 +32,7 @@ export function createGround(U, mobile, puddle) {
     fragmentShader: /* glsl */`
       uniform float uT; uniform sampler2D tRefl; uniform vec2 uScreen; uniform vec3 uPuddle; varying vec3 vW;
       ${COMMON_GLSL}
+      ${GROUND_GLSL}
       // contorno irregular da poça (raio que varia com o ângulo)
       float puddleMask(vec2 p, float aa) {
         vec2 q = p - uPuddle.xy; float a = atan(q.y, q.x);
@@ -42,10 +59,40 @@ export function createGround(U, mobile, puddle) {
           float tone = .75 + .5 * hash12(id);
           vec3 stone = vec3(.022, .021, .024) * tone * (.45 + .55 * grout);
           float wet = .35 + .45 * hash12(id * .37 + 4.);                      // manchas mais molhadas
+          // avenida: asfalto com pintura gasta (faixa central tracejada, bordas, faixa de pedestres, linha de parada)
+          float road = step(abs(p.x), RW) * step(p.y, Z0 - 1.);
+          if (road > .5) {
+            float grain = vn(p * 3.1) * .6 + vn(p * 11.) * .4;
+            stone = vec3(.013, .013, .015) * (.75 + .5 * grain);
+            grout = 1.;
+            float paintAA = .02 + fwidth(p.x) * 1.5;
+            float wear = smoothstep(.25, .6, vn(p * 2.3 + 7.)) * .7 + .3;
+            float zebra = step(CZ0, p.y) * step(p.y, CZ1) * smoothstep(.45 + paintAA, .45, abs(fract(p.x / 1.1) - .5)) * step(abs(p.x), RW - .6);
+            float stopl = smoothstep(.16 + paintAA, .16, abs(p.y - (CZ0 - 1.4))) * step(0., p.x) * step(p.x, RW - .3);
+            float edge = smoothstep(.07 + paintAA, .07, abs(abs(p.x) - (RW - .45))) * step(p.y, CZ0 - 1.);
+            float center = smoothstep(.07 + paintAA, .07, abs(abs(p.x) - .12)) * step(fract(p.y / 6.), .55) * step(p.y, CZ0 - 3.);
+            stone = mix(stone, vec3(.075, .072, .068), (zebra + stopl + edge) * wear);
+            stone = mix(stone, vec3(.09, .065, .018), center * wear);
+            wet = .6;
+          }
+          // bueiros (o da avenida solta vapor) e ralos junto ao meio-fio
+          float ring, mh = manhole(p, STEAMC, ring);
+          float ring2, mh2 = manhole(p, vec2(3.4, -64.), ring2);
+          float ring3, mh3 = manhole(p, vec2(-5.5, 24.), ring3);
+          float lid = max(mh, max(mh2, mh3));
+          vec2 lg = abs(fract(p * 4.2 + p.yx * 2.1) - .5);
+          stone = mix(stone, vec3(.012, .011, .011) * (.8 + .6 * step(.18, min(lg.x, lg.y))), lid);
+          stone += vec3(.02, .018, .016) * max(ring, max(ring2, ring3));
+          float drain = step(abs(abs(p.x) - (RW + .25)), .2) * step(abs(mod(p.y + 3., 25.) - 12.5), .45) * step(p.y, Z0 - 2.);
+          stone = mix(stone, vec3(.004) * (.5 + step(.5, fract(p.y * 9.))), drain);
+          // manchas de poça (chuva recente): espelho fraco por cima da pedra
+          float pn = vn(p * .33 + 3.) + vn(p * 1.2) * .35;
+          float pm2 = smoothstep(.86, .9, pn) * (1. - pm) * (1. - lid);
+          wet = mix(wet, 1.4, pm2);
           float fres = .04 + .96 * pow(1. - max(V.y, 0.), 5.);
           // reflexo: na pedra, borrado e fraco; na poça, espelho com as ondinhas
           vec2 off = mix(vec2(0.), g * vec2(.4, 1.) * .5 / (1. + d * .2), pm);
-          float spread = mix(.022, .006, pm);
+          float spread = mix(mix(.022, .01, pm2), .006, pm);
           vec3 refl = vec3(0.);
           for (int i = 0; i < TAPS; i++) {
             float k = float(i) - float(TAPS - 1) * .5;
@@ -54,6 +101,7 @@ export function createGround(U, mobile, puddle) {
           refl /= float(TAPS);
           vec3 col = stone + L * .03 * tone;
           col += refl * fres * wet * .22 * grout;                            // chão molhado: reflexo sutil
+          col = mix(col, stone * .35 + refl * (fres * .55 + .12), pm2 * .75); // manchas de poça: escuras e espelhadas
           vec3 pud = mix(vec3(.003, .004, .006), refl, clamp(fres * 1.2 + .35, 0., .95));
           col = mix(col, pud, pm);
           col *= 1. - .35 * smoothstep(.0, .5, pm) * smoothstep(1., .5, pm); // borda escura (molhada) da poça
