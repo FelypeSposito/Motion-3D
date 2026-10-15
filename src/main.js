@@ -8,10 +8,8 @@ import { quality } from "./core/quality.js";
 // baixado só quando a rolagem se aproxima dele.
 const STORY = [
   { kicker: "01 — Prado", title: "Onde as ideias <em>florescem</em>", module: () => import("./chapters/01-prado/index.js") },
+  { kicker: "02 — Cidade", title: "Onde as ideias <em>acendem</em>", module: () => import("./chapters/02-cidade/index.js") },
 ];
-// protótipo do capítulo 02 (cidade dos letreiros): só entra no roteiro com ?cap2 na URL, até ser aprovado
-if (new URLSearchParams(location.search).has("cap2"))
-  STORY.push({ kicker: "02 — Cidade", title: "Onde as ideias <em>acendem</em>", module: () => import("./chapters/02-cidade/index.js") });
 
 const engine = createEngine(document.getElementById("stage"));
 const nightBtn = document.getElementById("nightBtn");

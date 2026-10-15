@@ -21,7 +21,7 @@
 - Computador: arbustos com esfera leve (−1,4 M triângulos).
 - **Transição entre capítulos**: a água turva até não se ver nada (lodo verde-oliva + partículas), a cena troca
   escondida e clareia (src/core/final-pass.js).
-- **Capítulo 02 — cidade dos letreiros** (só com `?cap2`): `src/chapters/02-cidade/` (city, screens = telões com efeito
+- **Capítulo 02 — cidade dos letreiros** (ligado direto no roteiro desde 15/out, aprovado pelo usuário): `src/chapters/02-cidade/` (city, screens = telões com efeito
   "tela filmada por celular" e mosaico de vídeo, water, glsl, projects) + `neon/` (letreiros neon com cascata,
   subida, flicker; página de teste `neon-test.html`). O usuário GOSTOU da cidade.
 - Deploy: `.github/workflows/pages.yml` compila e publica no Pages (Settings → Pages → Source = GitHub Actions).
