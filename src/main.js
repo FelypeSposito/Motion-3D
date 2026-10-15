@@ -8,6 +8,7 @@ import { quality } from "./core/quality.js";
 // baixado só quando a rolagem se aproxima dele.
 const STORY = [
   { kicker: "01 — Prado", title: "Onde as ideias <em>florescem</em>", module: () => import("./chapters/01-prado/index.js") },
+  { kicker: "Interlúdio", title: "", module: () => import("./chapters/01b-fundo/index.js") },
   { kicker: "02 — Cidade", title: "Onde as ideias <em>acendem</em>", module: () => import("./chapters/02-cidade/index.js") },
 ];
 
@@ -19,6 +20,7 @@ const chapters = createChapters({
   onChapter: (i, ch, inst) => {
     document.getElementById("kicker").textContent = ch.kicker;
     document.getElementById("title").innerHTML = ch.title;
+    document.querySelector(".caption").classList.toggle("hidden", !!inst.hideCaption);   // o interlúdio tem tipografia própria
   },
 });
 
