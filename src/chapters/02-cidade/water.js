@@ -85,7 +85,7 @@ export function createGround(U, mobile, puddle) {
           stone = mix(stone, vec3(.004) * (.5 + step(.5, fract(p.y * 9.))), drain);
           // manchas de poça (chuva recente): espelho fraco por cima da pedra
           float pn = vn(p * .33 + 3.) + vn(p * 1.2) * .35;
-          float pm2 = smoothstep(.86, .9, pn) * (1. - pm) * (1. - lid);
+          float pm2 = smoothstep(.92, .95, pn) * (1. - pm) * (1. - lid);
           wet = mix(wet, 1.4, pm2);
           float fres = .04 + .96 * pow(1. - max(V.y, 0.), 5.);
           // reflexo: na pedra, borrado e fraco; na poça, espelho com as ondinhas
@@ -99,7 +99,7 @@ export function createGround(U, mobile, puddle) {
           refl /= float(TAPS);
           vec3 col = stone + L * .03 * tone;
           col += refl * fres * wet * .22 * grout;                            // chão molhado: reflexo sutil
-          col = mix(col, stone * .35 + refl * (fres * .55 + .12), pm2 * .75); // manchas de poça: escuras e espelhadas
+          col = mix(col, stone * .6 + refl * (fres * .55 + .12), pm2 * .55); // manchas de poça: escuras e espelhadas
           vec3 pud = mix(vec3(.003, .004, .006), refl, clamp(fres * 1.2 + .35, 0., .95));
           col = mix(col, pud, pm);
           col *= 1. - .35 * smoothstep(.0, .5, pm) * smoothstep(1., .5, pm); // borda escura (molhada) da poça

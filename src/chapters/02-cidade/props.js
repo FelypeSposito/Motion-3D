@@ -114,7 +114,7 @@ function marqueeMaterial(U) {
   });
 }
 
-export function createStreet(U, mobile, roof, facades = []) {
+export function createStreet(U, mobile, roof, facades = [], screens = []) {
   const group = new THREE.Group(), lights = [];
   const items = {};                                     // tipo → [{p, ry, s, tint}]
   const put = (kind, x, z, ry = 0, s = [1, 1, 1], tint = [1, 1, 1], y = 0) =>
@@ -192,7 +192,9 @@ export function createStreet(U, mobile, roof, facades = []) {
         for (let i = i0; i <= i1; i++) {
           if (((i % 4) + 4) % 4 === 0 || Math.abs(Math.sin(i * 12.9898 + j * 78.233 + f.seed * 311) * 43758.5453) % 1 > .16) continue;
           const along = (i + .5) * 1.9 - lt, q = c.clone().addScaledVector(ax, along).addScaledVector(n, .22);
-          put("box", q.x, q.z, f.rotY, [.72, .46, .5], [.55, .55, .58], j * 3.3 + .78);
+          const y = j * 3.3 + .78;
+          if (screens.some((s) => { const d = q.clone().sub(s.p); return Math.abs(d.dot(s.n)) < 1 && Math.abs(d.x * Math.cos(s.rotY) - d.z * Math.sin(s.rotY)) < s.W / 2 + .6 && Math.abs(y + .23 - s.p.y) < s.H / 2 + .6; })) continue;   // nada atravessando telão
+          put("box", q.x, q.z, f.rotY, [.72, .46, .5], [.55, .55, .58], y);
         }
       }
     }
@@ -243,7 +245,7 @@ export function createStreet(U, mobile, roof, facades = []) {
         float shape = smoothstep(w, w * .2, abs(p.x + sin(vUv.y * 4. + uT * .4) * .25 * vUv.y));
         float n = vn(p * 1.6 - vec2(uT * .15, uT * .9)) * .6 + vn(p * 3.7 - vec2(-uT * .1, uT * 1.6)) * .4;
         float a = shape * smoothstep(.0, .08, vUv.y) * smoothstep(1., .45, vUv.y) * smoothstep(.25, .75, n) * .5;
-        vec3 col = (uHaze * 3. + neonLight(vW.xz) * .5 + vec3(.05, .045, .05)) * a;
+        vec3 col = (uHaze * 2. + neonLight(vW.xz) * .6) * a * .55;   // tênue e tingido (branco lia como "fantasma")
         float d = length(vW - cameraPosition);
         gl_FragColor = vec4(col * exp(-d * uFogD * .8), 1.);
       }`,

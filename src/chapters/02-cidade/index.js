@@ -20,12 +20,12 @@ const PUDDLE = { x: 0, z: 14, r: 1.7 };
 const v3 = (a) => new THREE.Vector3(...a);
 // planos: [p0, p1] da rolagem do capítulo, posição/alvo no começo (a) e no fim (b) — movimento curto e lento
 const SHOTS = [
-  { p: [0.18, 0.33], a: [[0, 3.2, 26], [0, 13, -70]], b: [[0, 3.6, 25], [0, 13.5, -70]] },          // plano geral (a foto)
+  { p: [0.18, 0.33], a: [[-4, 3.2, 26], [3, 13, -70]], b: [[-3.4, 3.6, 25], [3, 13.5, -70]] },     // plano geral (a foto), fora do eixo
   { p: [0.33, 0.48], a: [[1.6, 2.2, -52], [0, 28, -90]], b: [[1.1, 2.4, -55], [0, 31, -90]] },      // torre de telões
   { p: [0.48, 0.62], a: [[-7, 1.2, 7], [-18, 15, 13]], b: [[-7.5, 1.3, 8.5], [-18, 16, 13]] },      // contra-plongée esquerda
   { p: [0.62, 0.76], a: [[6, 3, 6], [14, 17, -8]], b: [[7, 3.4, 5], [15, 19, -8]] },                // esquina direita
   { p: [0.76, 0.88], a: [[5, 1.8, 16], [18, 12, 10]], b: [[6, 2, 14.5], [18, 13, 10]] },            // lateral direita
-  { p: [0.88, 1.01], a: [[0, 4, 30], [0, 13, -70]], b: [[0, 10, 31], [0, 12, -70]] },               // grua final
+  { p: [0.88, 1.01], a: [[2, 5, 30], [0, 10, -40]], b: [[-6, 22, 34], [0, 9, -40]] },              // grua final: sobe em plongée sobre a praça
 ].map((s) => ({ p: s.p, a: s.a.map(v3), b: s.b.map(v3) }));
 const EMERGE_END = SHOTS[0].p[0];
 
@@ -62,7 +62,7 @@ export async function create(ctx) {
   }
 
   // mobiliário, meio-fio e telhados (os postes iluminam o chão pelo mapa de luz)
-  const street = createStreet(U, mobile, roof, facades);
+  const street = createStreet(U, mobile, roof, facades, screens.items);
 
   // mapa de luz: telões + neons (se houver) + postes, calculado uma vez
   const sources = [...screens.lights, ...street.lights];
@@ -72,8 +72,7 @@ export async function create(ctx) {
   }
   U.light.value = bakeLightMap(sources, mobile);
 
-  const sky = gradientSky({ top: "#020208", horizon: "#2a1030", bottom: "#05030a", radius: 900 });
-  sky.material.uniforms.uHor.value.multiplyScalar(0.55);
+  const sky = gradientSky({ top: "#05040c", horizon: "#4a1a40", bottom: "#05030a", radius: 900 });   // brilho urbano no horizonte (sem preto morto atrás dos prédios)
 
   // estátua + mastro de luz no centro da praça (bronze escuro com a luz dos letreiros)
   const bronze = new THREE.ShaderMaterial({
@@ -90,9 +89,10 @@ export async function create(ctx) {
   add(new THREE.BoxGeometry(2.6, 1.6, 2.6), 0, 0.8, 4);
   add(new THREE.CylinderGeometry(0.32, 0.45, 2.6, 12), 0, 2.9, 4);
   add(new THREE.SphereGeometry(0.3, 12, 8), 0, 4.45, 4);
-  add(new THREE.CylinderGeometry(0.07, 0.11, 9, 8), 3.4, 4.5, 1.5);
+  add(new THREE.CylinderGeometry(0.07, 0.11, 9, 8), -3.2, 4.5, 1.5);
   const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(3, 2.1, 1.2), fog: false }));
-  lamp.position.set(3.4, 9.1, 1.5); statue.add(lamp);
+  lamp.position.set(-3.2, 9.1, 1.5); statue.add(lamp);
+  statue.position.set(-6, 0, 6); statue.scale.setScalar(.85);   // fora do eixo: não tapa a torre no ponto de fuga
 
   // "refletíveis": tudo o que aparece no reflexo do chão/poça (o grupo é espelhado em y no passe do reflexo)
   const mirror = new THREE.Group();
@@ -150,6 +150,7 @@ export async function create(ctx) {
       R.subVectors(Lk, P).cross(UP).normalize();
       P.addScaledVector(R, ptr.sx * 0.7 + Math.sin(t * 0.23) * 0.06); P.y += -ptr.sy * 0.35 + Math.sin(t * 0.31 + 0.7) * 0.04;
       Lk.addScaledVector(R, ptr.sx * 1.2); Lk.y -= ptr.sy * 0.8;
+      if (shown === 0 && camera.aspect < 1) { P.z += 8; P.y += 2; }   // celular em pé: recua o plano geral (não vira cânion)
       camera.position.copy(P); camera.lookAt(Lk);
     }
     camera.rotateZ(-ptr.sx * 0.02 + Math.sin(t * 0.27) * 0.003);

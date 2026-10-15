@@ -74,7 +74,9 @@ export async function createScreens({ facades, U, mobile, rnd, fixed = [], fill 
     col.set(it.project !== undefined ? PROJECTS[it.project].color : NEON[Math.floor(rnd() * NEON.length)]);
     aColor.set([col.r, col.g, col.b], i * 3);
     aInfo.set([rnd() * 10, 0, rnd() * 20, 0], i * 4);                       // semente, (livre), tempo do clipe, tocando?
-    aKind.set([it.project ?? -1, cells[i] % 4], i * 2);                      // linha do título, estilo do clipe procedural
+    // estilo do clipe: projetos fixos; anúncios sorteados com poucos "anéis" (repetiam demais)
+    const r = rnd(), st = it.project !== undefined ? cells[i] % 4 : (r < .35 ? 0 : r < .62 ? 1 : r < .92 ? 3 : 2);
+    aKind.set([it.project ?? -1, st], i * 2);                                // linha do título, estilo do clipe procedural
   });
 
   const plane = new THREE.PlaneGeometry(1, 1);
@@ -150,8 +152,10 @@ export async function createScreens({ facades, U, mobile, rnd, fixed = [], fill 
         vec3 c = content(cuv + .5, vInfo.z);
         // título do projeto (faixa no canto inferior esquerdo), com aberração cromática nas bordas das letras
         if (vKind.x > -.5) {
-          float hb = min(.24, .9 * vSize.x / 4. / vSize.y), wb = hb * vSize.y * 4. / vSize.x;
-          vec2 tuv = (q - vec2(.05, .07)) / vec2(wb, hb);
+          // título grande (até ~40% da altura) sobre faixa escura: o projeto se lê de longe
+          float hb = min(.4, .92 * vSize.x / 4. / vSize.y), wb = hb * vSize.y * 4. / vSize.x;
+          c *= 1. - .62 * smoothstep(hb + .14, hb - .02, q.y);
+          vec2 tuv = (q - vec2(.05, .06)) / vec2(wb, hb);
           if (tuv.x > 0. && tuv.x < 1. && tuv.y > 0. && tuv.y < 1.) {
             vec2 o = vec2(.006, 0.);
             float row = vKind.x;
@@ -159,7 +163,6 @@ export async function createScreens({ facades, U, mobile, rnd, fixed = [], fill 
             vec3 tt = vec3(texture2D(tTitles, a + o).a, texture2D(tTitles, a).a, texture2D(tTitles, a - o).a);
             c = c * (1. - .55 * tt.g) + tt * 1.6;
           }
-          c *= 1. - .45 * smoothstep(.0, .35, .33 - q.y);  // base mais escura para o texto
         }
         // ---- "filmado por celular"
         vec2 f = fract(px), fw = fwidth(px);
