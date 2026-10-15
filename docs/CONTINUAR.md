@@ -2,6 +2,31 @@
 
 Última atualização: **v14 (luz assada + cidade)**, 15/out/2026, enviada ao GitHub a pedido do usuário. Só enviar de novo quando ele mandar.
 
+## 00. ÚLTIMA SESSÃO (noite de 15/out) — v16
+- **Roteiro agora tem 3 capítulos**: 01 Prado → **Interlúdio 2D** (`src/chapters/01b-fundo/`, fundo do lago: azul-marinho + bege,
+  linhas finas e textos entrando pela direita/de cima, Instrument Serif/Sans, amarrado à rolagem) → 02 Cidade.
+  Em `__motion.go(p)`: 0–1 prado, 1–2 interlúdio, 2–3 cidade.
+- **GitHub Pages corrigido**: a origem era "branch main" (servia o código-fonte cru). Foi trocada pela API para
+  **GitHub Actions** (`build_type: workflow`); `.github/workflows/pages.yml` compila e publica a cada push. Site no ar:
+  https://felypesposito.github.io/Motion-3D/
+- **Cidade**: texturas de fachada (tijolo/pedra/concreto/granito, sujeira escorrendo, janelas com profundidade e
+  persianas), névoa em camadas (`fog.js`), marquises com lâmpadas correndo, ar-condicionado nas janelas, andaimes,
+  **telões de projeto clicáveis com hover** (`screens.js`: raio do ponteiro, moldura com luz correndo, cantoneiras,
+  "VER PROJETO ↗"; clique dispara `motion:project` e abre `PROJECTS[i].url` se existir — falta pôr as URLs em
+  `projects.js`). Correções do crítico: planos assimétricos, grua em plongée, céu com brilho urbano, estátua fora do eixo,
+  títulos de projeto maiores, menos anéis, ar-condicionado fora dos telões.
+- Ciclo combinado com o usuário: ao terminar cada tarefa → revisar design (prints PC/celular) → caçar bugs → próxima cena.
+
+**Próximos passos sugeridos (em ordem)**
+1. Blender para a cidade (recomendação do crítico): kit modular de 6–10 peças (térreo com vitrine/marquise, 3–4 módulos
+   de andar, cornija, topo) + atlas 2K de fachada, montado por instância; e o prédio triangular do centro (estilo One Times
+   Square) com escadaria vermelha. NÃO modelar prédio a prédio.
+2. Prado: converter `props-day/night.png` (16 MB) para KTX2/WebP; afinar/dessaturar a grama em p≈.3; dar algo para ver em
+   p≈.5; peixes dourados com cara de disco voador em `dive.js` (metalness 0, cor da água).
+3. Cidade: telões de projeto com imagem/vídeo real; silhuetas de pessoas (escuras com contorno neon); evitar letreiro
+   repetido perto ("VOLT VOLT"); um plano na altura da calçada.
+4. Nova cena antes da cidade (ideias para o usuário escolher): ver resumo da sessão.
+
 ## 0. COMO SEGUIR (leia primeiro) — estado da sessão de 14–15/out
 **O que entrou na v14**
 - **Sorteio com semente** (`RNG.seed(n)` no gerador): pedras, colunas, píer e trilha saem iguais em toda carga e aparelho
