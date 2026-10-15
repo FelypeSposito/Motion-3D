@@ -1,0 +1,15 @@
+imagem                                      PSNR   SSIM    MAE    %>8
+d1440-p000-day.png                           inf 1.0000   0.00   0.00
+d1440-p000-night.png                         inf 1.0000   0.00   0.00
+d1440-p015-day.png                           inf 1.0000   0.00   0.00
+d1440-p015-night.png                         inf 1.0000   0.00   0.00
+d1440-p030-day.png                           inf 1.0000   0.00   0.00
+d1440-p030-night.png                         inf 1.0000   0.00   0.00
+d1440-p045-day.png                           inf 1.0000   0.00   0.00
+d1440-p045-night.png                         inf 1.0000   0.00   0.00
+d1440-p060-day.png                           inf 1.0000   0.00   0.00
+d1440-p060-night.png                         inf 1.0000   0.00   0.00
+d1440-p075-day.png                           inf 1.0000   0.00   0.00
+d1440-p075-night.png                         inf 1.0000   0.00   0.00
+d1440-p090-day.png                         46.04 0.9754   0.99   0.00
+d1440-p090-night.png                       45.56 0.9722   1.06   0.00

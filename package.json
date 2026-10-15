@@ -1,0 +1,20 @@
+{
+  "name": "motion-3d",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "predev": "node scripts/copy-basis.mjs",
+    "dev": "vite --host",
+    "prebuild": "node scripts/copy-basis.mjs",
+    "build": "vite build",
+    "preview": "vite preview --host"
+  },
+  "dependencies": {
+    "gsap": "3.12.5",
+    "three": "0.170.0"
+  },
+  "devDependencies": {
+    "vite": "5.4.11"
+  }
+}

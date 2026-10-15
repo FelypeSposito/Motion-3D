@@ -1,0 +1,33 @@
+:root{--ink:#2a2418;--paper:#f3e3c4;--white:#fff8ea;--ease:cubic-bezier(.65,.05,0,1)}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;background:var(--paper);color:var(--white);font-family:'Instrument Sans',sans-serif;overscroll-behavior:none;touch-action:none}
+.serif{font-family:'Instrument Serif',serif;font-style:italic;font-weight:400}
+#stage{position:fixed;inset:0}
+#stage canvas{display:block;width:100%;height:100%}
+
+/* tela de carregamento */
+#loader{position:fixed;inset:0;z-index:20;background:var(--paper);color:var(--ink);display:grid;place-content:center;gap:1.4rem;justify-items:center;transition:clip-path 1.2s var(--ease)}
+#loader.out{clip-path:inset(0 0 100% 0)}
+#loader .mark{font-size:2rem;letter-spacing:-.04em}
+#loader .bar{width:160px;height:2px;background:#2a24181f;overflow:hidden}
+#loader .bar i{display:block;height:100%;width:100%;background:var(--ink);transform:scaleX(0);transform-origin:left;transition:transform .4s var(--ease)}
+#enter{padding:.55rem 1.3rem;border-radius:2rem;border:0;background:var(--ink);color:var(--paper);font:inherit;font-size:.85rem;cursor:pointer;opacity:.3;transition:opacity .4s}
+#enter:not([disabled]){opacity:1}
+
+/* interface: nada de sombras com desfoque nem filtros (são caros sobre o canvas) */
+.ui{position:fixed;z-index:10;opacity:0;transition:opacity 1s var(--ease)}
+.ui.on{opacity:1}
+header{top:max(1.5rem,env(safe-area-inset-top));left:2rem;right:2rem;display:flex;justify-content:space-between;align-items:center}
+.logo{font-size:1.8rem;letter-spacing:-.04em}
+.logo sup{font-size:.55rem}
+nav a{color:inherit;text-decoration:none;font-size:1.05rem}
+.caption{left:2rem;bottom:max(2.2rem,env(safe-area-inset-bottom));max-width:min(560px,80vw)}
+.caption small{display:block;font-size:.8rem;letter-spacing:.06em;opacity:.85;margin-bottom:.4rem;text-transform:uppercase}
+.caption h1{font-weight:500;font-size:clamp(2.2rem,6vw,4.6rem);line-height:.9;letter-spacing:-.04em}
+.caption h1 em{font-family:'Instrument Serif',serif;font-weight:400}
+.progress{right:2rem;bottom:max(2.4rem,env(safe-area-inset-bottom));width:2px;height:90px;background:#fff8ea40}
+.progress i{display:block;width:100%;height:100%;background:var(--white);transform:scaleY(0);transform-origin:top}
+.roundbtn{right:2rem;top:auto;bottom:calc(max(2.4rem,env(safe-area-inset-bottom)) + 110px);width:46px;height:46px;border-radius:50%;border:0;background:var(--white);color:var(--ink);font-size:1rem;cursor:pointer;transition:opacity 1s var(--ease),transform .5s var(--ease)}
+.roundbtn:hover{transform:scale(1.1)}
+.roundbtn.hide{opacity:0!important;pointer-events:none}
+@media (max-width:700px){header{left:1rem;right:1rem}.caption{left:1rem}.progress{right:1rem}}

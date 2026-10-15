@@ -1,0 +1,15 @@
+imagem                                      PSNR   SSIM    MAE    %>8
+m390-p000-day.png                            inf 1.0000   0.00   0.00
+m390-p000-night.png                          inf 1.0000   0.00   0.00
+m390-p015-day.png                            inf 1.0000   0.00   0.00
+m390-p015-night.png                          inf 1.0000   0.00   0.00
+m390-p030-day.png                            inf 1.0000   0.00   0.00
+m390-p030-night.png                          inf 1.0000   0.00   0.00
+m390-p045-day.png                            inf 1.0000   0.00   0.00
+m390-p045-night.png                          inf 1.0000   0.00   0.00
+m390-p060-day.png                            inf 1.0000   0.00   0.00
+m390-p060-night.png                          inf 1.0000   0.00   0.00
+m390-p075-day.png                            inf 1.0000   0.00   0.00
+m390-p075-night.png                          inf 1.0000   0.00   0.00
+m390-p090-day.png                          46.22 0.9755   0.95   0.00
+m390-p090-night.png                        46.13 0.9749   0.96   0.00

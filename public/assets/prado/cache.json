@@ -1,0 +1,194 @@
+{
+ "height-512": {
+  "file": "height-512.bin",
+  "kind": "bin",
+  "v": "mv8yfym3",
+  "dev": "both"
+ },
+ "stoneMap": {
+  "file": "stoneMap.webp",
+  "kind": "image",
+  "v": "mv8yfym3",
+  "dev": "both"
+ },
+ "stoneBump": {
+  "file": "stoneBump.webp",
+  "kind": "image",
+  "v": "mv8yfym3",
+  "dev": "both"
+ },
+ "barkTex512": {
+  "file": "barkTex512.webp",
+  "kind": "image",
+  "v": "mv8yfym3",
+  "dev": "both"
+ },
+ "leafTex": {
+  "file": "leafTex.webp",
+  "kind": "image",
+  "v": "mv8yfym3",
+  "dev": "both"
+ },
+ "padTex": {
+  "file": "padTex.webp",
+  "kind": "image",
+  "v": "mv8yfym3",
+  "dev": "both"
+ },
+ "waterNormal": {
+  "file": "waterNormal.webp",
+  "kind": "image",
+  "v": "mv8yfym3",
+  "dev": "both"
+ },
+ "glowTex": {
+  "file": "glowTex.webp",
+  "kind": "image",
+  "v": "mv8yfym3",
+  "dev": "both"
+ },
+ "wingTex": {
+  "file": "wingTex.webp",
+  "kind": "image",
+  "v": "mv8yfym3",
+  "dev": "both"
+ },
+ "terrain-170x170-220x220-h": {
+  "file": "terrain-170x170-220x220-h.bin",
+  "kind": "bin",
+  "v": "mv8yfbzs",
+  "dev": "d"
+ },
+ "terrain-170x170-220x220-c": {
+  "file": "terrain-170x170-220x220-c.bin",
+  "kind": "bin",
+  "v": "mv8yfbzs",
+  "dev": "d"
+ },
+ "terrain-600x420-120x50-h": {
+  "file": "terrain-600x420-120x50-h.bin",
+  "kind": "bin",
+  "v": "mv8yfym3",
+  "dev": "both"
+ },
+ "terrain-600x420-120x50-c": {
+  "file": "terrain-600x420-120x50-c.bin",
+  "kind": "bin",
+  "v": "mv8yfym3",
+  "dev": "both"
+ },
+ "rock-0-28": {
+  "file": "rock-0-28.bin",
+  "kind": "bin",
+  "v": "mv8yfbzs",
+  "dev": "d"
+ },
+ "rock-1-28": {
+  "file": "rock-1-28.bin",
+  "kind": "bin",
+  "v": "mv8yfbzs",
+  "dev": "d"
+ },
+ "rock-2-28": {
+  "file": "rock-2-28.bin",
+  "kind": "bin",
+  "v": "mv8yfbzs",
+  "dev": "d"
+ },
+ "rock-3-28": {
+  "file": "rock-3-28.bin",
+  "kind": "bin",
+  "v": "mv8yfbzs",
+  "dev": "d"
+ },
+ "rock-4-28": {
+  "file": "rock-4-28.bin",
+  "kind": "bin",
+  "v": "mv8yfbzs",
+  "dev": "d"
+ },
+ "rock-5-28": {
+  "file": "rock-5-28.bin",
+  "kind": "bin",
+  "v": "mv8yfbzs",
+  "dev": "d"
+ },
+ "fernTex": {
+  "file": "fernTex.webp",
+  "kind": "image",
+  "v": "mv8yfym3",
+  "dev": "both"
+ },
+ "woodTex": {
+  "file": "woodTex.webp",
+  "kind": "image",
+  "v": "mv8yfym3",
+  "dev": "both"
+ },
+ "fogNoise": {
+  "file": "fogNoise.webp",
+  "kind": "image",
+  "v": "mv8yfym3",
+  "dev": "both"
+ },
+ "gMap": {
+  "file": "gMap.webp",
+  "kind": "image",
+  "v": "mv8yfym3",
+  "dev": "m"
+ },
+ "gNorm": {
+  "file": "gNorm.webp",
+  "kind": "image",
+  "v": "mv8yfym3",
+  "dev": "m"
+ },
+ "terrain-170x170-160x160-h": {
+  "file": "terrain-170x170-160x160-h.bin",
+  "kind": "bin",
+  "v": "mv8yfym3",
+  "dev": "m"
+ },
+ "terrain-170x170-160x160-c": {
+  "file": "terrain-170x170-160x160-c.bin",
+  "kind": "bin",
+  "v": "mv8yfym3",
+  "dev": "m"
+ },
+ "rock-0-18": {
+  "file": "rock-0-18.bin",
+  "kind": "bin",
+  "v": "mv8yfym3",
+  "dev": "m"
+ },
+ "rock-1-18": {
+  "file": "rock-1-18.bin",
+  "kind": "bin",
+  "v": "mv8yfym3",
+  "dev": "m"
+ },
+ "rock-2-18": {
+  "file": "rock-2-18.bin",
+  "kind": "bin",
+  "v": "mv8yfym3",
+  "dev": "m"
+ },
+ "rock-3-18": {
+  "file": "rock-3-18.bin",
+  "kind": "bin",
+  "v": "mv8yfym3",
+  "dev": "m"
+ },
+ "rock-4-18": {
+  "file": "rock-4-18.bin",
+  "kind": "bin",
+  "v": "mv8yfym3",
+  "dev": "m"
+ },
+ "rock-5-18": {
+  "file": "rock-5-18.bin",
+  "kind": "bin",
+  "v": "mv8yfym3",
+  "dev": "m"
+ }
+}

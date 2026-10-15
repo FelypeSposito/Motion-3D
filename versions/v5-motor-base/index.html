@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Motion 3D</title>
+<meta name="theme-color" content="#e9c69a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./src/style.css">
+</head>
+<body>
+<div id="stage"></div>
+
+<div id="loader" aria-live="polite">
+  <div class="mark">meadow<span class="serif">studio</span></div>
+  <div class="bar"><i></i></div>
+  <button id="enter" disabled>Entrar ↘</button>
+</div>
+
+<header class="ui">
+  <div class="logo">meadow<span class="serif">studio</span><sup>®</sup></div>
+  <nav><a href="./estudos/">Estudos</a></nav>
+</header>
+
+<section class="caption ui" aria-live="polite">
+  <small id="kicker"></small>
+  <h1 id="title"></h1>
+</section>
+
+<div class="progress ui" aria-hidden="true"><i id="progressBar"></i></div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>

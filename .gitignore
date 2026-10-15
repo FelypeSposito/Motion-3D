@@ -1,1 +1,13 @@
 .claude/
+node_modules/
+dist/
+public/basis/
+# builds locais (o site é publicado pelo GitHub Actions)
+dist*/
+# arquivos de trabalho do Blender grandes/regeneráveis (o .blend fica)
+blender/*.exr
+blender/*.blend1
+blender/*-raw.glb
+# exportação de desenvolvimento (?export) e prints do QA visual (regeneráveis)
+public/assets/prado/bake/prado-static.glb
+docs/qa/**/*.png
